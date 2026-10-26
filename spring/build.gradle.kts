@@ -40,7 +40,7 @@ dependencies {
     implementation("org.springframework.security:spring-security-webauthn")
     // 4-2 서버 렌더링 화면(th:text 자동 이스케이프) + 서식 있는 본문 허용 목록 정화
     implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
-    implementation("com.googlecode.owasp-java-html-sanitizer:owasp-java-html-sanitizer:20260924.1")
+    implementation("com.googlecode.owasp-java-html-sanitizer:owasp-java-html-sanitizer:20261011.1")
     // 4-4 요청 제한 (토큰 버킷)
     implementation("com.bucket4j:bucket4j_jdk17-core:8.21.0")
     // 5-1 내부 API 클라이언트: SSL 번들(spring.ssl.bundle.*) → RestClientSsl
