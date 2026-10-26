@@ -55,6 +55,18 @@ ssh -L 8080:127.0.0.1:8080 -L 3000:127.0.0.1:3000 admin@lab-vm.example.com
 
 **`localhost:3000`에서 다른 화면이 나오면** 내 PC에서 다른 프로그램(예: 프런트엔드 개발 서버)이 3000번 포트를 쓰고 있는 것입니다. `curl -s 127.0.0.1:3000/health`처럼 IPv4 주소로 접속하거나, 그 프로그램을 끄세요.
 
+### GitHub Actions 워크플로를 켜는 법
+
+fork한 저장소에서 `secret-scan`(push·PR)과 `pr-security`(PR)는 바로 돌아갑니다. 배포·운영 예시인 아래 세 워크플로는 레지스트리·AWS 역할·스테이징 주소가 예시 값이라 **기본으로 꺼 두었습니다.** 내 환경에 맞게 값을 바꾼 뒤 **Settings → Secrets and variables → Actions → Variables**에서 변수를 `true`로 만들면 켜집니다.
+
+| 워크플로 | 수업 | 켜는 변수 |
+| --- | --- | --- |
+| `release.yml` | 6-4 | `ENABLE_RELEASE` |
+| `rescan-prod.yml` | 6-1 | `ENABLE_RESCAN` |
+| `dast-staging.yml` | 6-3 | `ENABLE_DAST` |
+
+수업 화면에는 이 `if:` 줄이 없습니다.
+
 ## 안전한 코드와 취약한 코드
 
 | 경로 | 내용 | 켜지는 조건 |

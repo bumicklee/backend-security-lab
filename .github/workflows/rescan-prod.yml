@@ -17,6 +17,8 @@ env:
 
 jobs:
   rescan:
+    # 실습 저장소: 저장소 변수 ENABLE_RESCAN=true 일 때만 실행 (예시 값으로는 실패하므로 기본은 꺼 둠)
+    if: vars.ENABLE_RESCAN == 'true'
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
