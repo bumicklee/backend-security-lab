@@ -2,7 +2,7 @@
 #   kubectl apply -f k8s/nettest.yaml
 #   kubectl -n board exec nettest -- nc -zv -w 3 postgres 5432                # open
 #   kubectl -n board exec nettest -- nc -zv -w 3 payments-db.payments 5432    # Connection timed out
-#   kubectl -n board exec nettest -- nc -zv -w 3 203.0.113.99 443             # Connection timed out
+#   kubectl -n board exec nettest -- nc -zv -w 3 198.51.100.99 443             # Connection timed out
 #   kubectl -n board delete pod nettest                                        # 확인이 끝나면 지운다
 apiVersion: v1
 kind: Pod

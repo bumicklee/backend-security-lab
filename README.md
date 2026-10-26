@@ -174,6 +174,8 @@ npm test -- tests/injection.test.js   # 파일 하나만 (ESM이라 npx jest 대
 - 2-1 s7(영향도 판단)의 터미널(`ops@legacy-01:/srv/board`)은 가상의 오래된 사내 서비스입니다. 이 저장소에는 log4j-core와 report-kit이 없으므로 같은 명령을 돌려도 결과가 다릅니다.
 - 2-8 s6은 수정을 아직 커밋하지 않은 상황입니다(고친 파일을 `git stash`로 잠시 치워 두고 테스트가 실패하는지 확인). 이 저장소에는 수정본이 이미 커밋되어 있어 `git stash push`가 "No local changes to save"를 냅니다. 실패를 직접 보려면 `spring/src/main/java/board/PostJdbcSearch.java`의 `search()` 쿼리를 잠시 문자열 결합으로 바꾼 뒤(`" WHERE title LIKE '%" + keyword + "%' ORDER BY " + column + " " + direction`, 마지막 인자 삭제) `./gradlew test --tests '*AttackRegressionTest'`를 돌리고, `git checkout -- spring/src/main/java/board/PostJdbcSearch.java`로 되돌리세요. 4개 중 2개가 실패합니다.
 - 테스트 출력 화면은 핵심 줄만 보이고 나머지는 "… 외 N개"로 줄였습니다. 실행 시간(ms, s)은 PC마다 다릅니다.
+- 2-3 s8(로그인 응답)과 2-6 s8(AWS CLI 출력)은 "운영 서버" 상황을 보여 주는 예시 출력입니다. 실습 앱의 실제 응답에는 토큰 필드가 더 있고, AWS CLI는 들여쓴 JSON에 필드가 더 붙습니다.
+- 출력을 줄인 터미널은 창 제목에 "일부 줄 생략"이라고 표시했습니다.
 
 ### 섹션 5
 
@@ -208,3 +210,8 @@ npm test -- tests/injection.test.js   # 파일 하나만 (ESM이라 npx jest 대
 - 6-8: 화면의 Sigma 규칙(`detections/linux/new-systemd-service.yml`)에 `id`·`description`·`author`·`date` 가 더해졌습니다(화면 13줄 제한). 화면의 헌팅 명령은 `ops/hunting/hunt-persistence.sh` 에 묶었고, crontab 반복(`… | while read -r u`)과 삭제된 실행 파일 찾기(`find /proc … -printf '%p -> %l\n' | grep '(deleted)'`)는 화면과 같습니다. 스크립트는 root 로 실행하므로 화면의 `sudo` 가 없고, 기간은 인자(기본 14일), 인증 로그는 `tail -5` 입니다. 1-6 의 auditd 규칙(`50-server.rules`)은 `/etc/systemd/system` 을 감시하지 않으므로, Sigma 규칙이 동작하려면 `detections/linux/60-persistence.rules`(화면 s10 과 같은 `-w /etc/systemd/system -p wa -k systemd_persist`)를 `/etc/audit/rules.d/` 에 더해야 합니다. 사용자 서비스 폴더(`~/.config/systemd/user/`)는 사용자마다 감시 규칙을 따로 더해야 기록이 남습니다. `hunt-persistence.sh` 의 cron 목록은 화면 s6 과 같이 `--time-style=long-iso`(분 단위 시각)입니다.
 - 6-9: `ops/ir/ir-collect.sh` 는 화면과 같은 순서·같은 파일 이름이고 마지막에 결과 폴더 경로를 출력합니다(화면 s6). 저장소에는 root 확인, 외부 저장소 마운트 확인(`IR_BASE`, 훈련용 `IR_ALLOW_LOCAL=1`), 오류 기록(`collect-errors.log` — 화면 s6 의 `ls` 목록에는 없음), avml 이 없을 때 메모리 덤프 생략, `umask 077` 이 더해졌습니다. 해시 대상은 화면과 같은 `*.txt` + `memory.lime` 입니다.
 - 6-10: 화면 s4 의 두 쿼리는 `ops/sql/breach_scope.sql` 과 같은 조건(주소·앱 이름·첫 침입 시각)이고, 저장소는 psql 변수(`addr`·`since`)를 씁니다. `audit.read_events` 는 `ops/sql/audit_read_events.sql`(표 정의, pgaudit 등에서 적재)입니다. 화면의 `notice-draft.txt` 는 `docs/incident/breach-notice-template.md` 의 "이용자 통지문" 블록이고, 화면에 없는 손해배상 청구 창구·조문 번호, 분쟁조정위원회 전화번호(1833-6972, 2026-10-26 kopico.go.kr·pipc.go.kr 에서 확인), "그 밖에 대통령령으로 정하는 사항" 칸과 **사용 전 최신 법 제34조·시행령 확인** 안내가 있습니다. 회고 틀은 `docs/incident/postmortem-template.md` 입니다.
+
+### 섹션 3·7
+
+- 3-3 s5 의 Spring 로그인 시작 주소 호출은 IdP를 등록한 `oidc` 프로필에서만 재현됩니다(화면 호스트는 board.example.com, 로컬은 `localhost:8080`). 값 확인은 `OAuthLoginTest`로 합니다.
+- 7-3 의 코드 칸은 `ops/kev/kev_watch.py`의 핵심만 줄여 보여 준 것입니다. 전체 코드와 설치 방법은 `ops/kev/README.md`에 있습니다.

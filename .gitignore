@@ -13,3 +13,6 @@
 *.log
 zap-scan.log
 ir-*/
+
+# 파이썬 캐시
+__pycache__/
