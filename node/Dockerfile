@@ -2,7 +2,7 @@
 # 베이스 이미지는 다이제스트로 고정한다(태그는 바뀔 수 있다). 다이제스트 갱신은 Dependabot(docker)이 제안한다.
 
 # 1) 빌드 단계: 운영 의존성만 설치. npm 같은 빌드 도구는 이 단계에만 남는다
-FROM node:24-slim@sha256:55fb5f5a527ea2c5c4a95f963e48ef90aa38c7b346054fdc8ee9957a2b55d205 AS build
+FROM node:25-slim@sha256:81db02c4b671288a03915da9534dbd54f96d0e7c24d80ccc54f5b36b2e684370 AS build
 # openssl: Prisma 가 실행 이미지(debian12, OpenSSL 3)와 같은 엔진을 고르도록 빌드 단계에도 둔다
 RUN apt-get update \
  && apt-get install -y --no-install-recommends openssl \
