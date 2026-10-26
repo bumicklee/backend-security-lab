@@ -30,7 +30,7 @@
 
 ### 1) Docker Compose (수업 0-5와 같은 방법)
 
-상위 폴더(`example-service/`)에서 DB와 두 서버를 한 번에 띄웁니다.
+상위 폴더(`backend-security-lab/`)에서 DB와 두 서버를 한 번에 띄웁니다.
 
 ```bash
 docker compose up -d

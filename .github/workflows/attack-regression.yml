@@ -1,0 +1,15 @@
+# 2-8 공격 재현 테스트를 PR마다 실행 (수업 화면과 같은 내용)
+# 브랜치 보호 규칙에서 이 작업(test)을 필수 검사로 지정하면, 실패한 PR은 병합되지 않습니다.
+on: [pull_request]
+permissions: { contents: read }
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - run: ./gradlew test --tests '*AttackRegressionTest'  # JDK 25는 Gradle이 받음
+        working-directory: spring
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with: { node-version: 24 }
+      - run: npm ci && npm test
+        working-directory: node

@@ -29,7 +29,7 @@ backend-security-lab/
 ├── .semgrep/board.yml  # 6-3 팀 Semgrep 규칙 (+ 규칙 테스트용 board.js·board.java)
 ├── zap-rules.conf      # 6-3 ZAP 규칙 파일
 ├── .github/dependabot.yml        # 6-4 업데이트 대기 기간(cooldown)
-└── .github/workflows/  # secret-scan(5-3) · rescan-prod(6-1) · pr-security·dast-staging(6-3) · release(6-4)
+└── .github/workflows/  # attack-regression(2-8) · secret-scan(5-3) · rescan-prod(6-1) · pr-security·dast-staging(6-3) · release(6-4)
 ```
 
 ## 빠르게 시작하기
@@ -57,7 +57,7 @@ ssh -L 8080:127.0.0.1:8080 -L 3000:127.0.0.1:3000 admin@lab-vm.example.com
 
 ### GitHub Actions 워크플로를 켜는 법
 
-fork한 저장소에서 `secret-scan`(push·PR)과 `pr-security`(PR)는 바로 돌아갑니다. 배포·운영 예시인 아래 세 워크플로는 레지스트리·AWS 역할·스테이징 주소가 예시 값이라 **기본으로 꺼 두었습니다.** 내 환경에 맞게 값을 바꾼 뒤 **Settings → Secrets and variables → Actions → Variables**에서 변수를 `true`로 만들면 켜집니다.
+fork한 저장소에서 `attack-regression`(PR), `secret-scan`(push·PR), `pr-security`(PR)는 바로 돌아갑니다. 배포·운영 예시인 아래 세 워크플로는 레지스트리·AWS 역할·스테이징 주소가 예시 값이라 **기본으로 꺼 두었습니다.** 내 환경에 맞게 값을 바꾼 뒤 **Settings → Secrets and variables → Actions → Variables**에서 변수를 `true`로 만들면 켜집니다.
 
 | 워크플로 | 수업 | 켜는 변수 |
 | --- | --- | --- |
@@ -114,7 +114,7 @@ npm test -- tests/injection.test.js   # 파일 하나만 (ESM이라 npx jest 대
 | 2-5 파일 업로드 | `POST /api/avatars` · `AvatarUploadAttackTest` | `POST /avatars` · `avatars.test.js` |
 | 2-6 SSRF | `GET /api/preview?url=` · `PreviewSsrfTest` | `GET /preview?url=` · `preview.ssrf.test.js` |
 | 2-7 역직렬화·프로토타입 오염 | `POST /api/carts` · `DeserializationAttackTest` | `PATCH /me/settings` · `prototype-pollution.test.js` |
-| 2-8 공격 재현 테스트 | `AttackRegressionTest` | `attack.test.js` |
+| 2-8 공격 재현 테스트 | `AttackRegressionTest` · CI: `.github/workflows/attack-regression.yml` | `attack.test.js` (CI는 `npm test` 전체) |
 | 3-1 비밀번호 저장 | `DelegatingPasswordEncoder`(argon2·bcrypt), `UserDetailsPasswordService` · `PasswordStorageTest` | `lib/password.js` `verifyAndUpgrade` · `password.test.js` |
 | 3-2 세션 vs JWT | 세션 쿠키 속성(`application.yml`), `POST /api/auth/logout` · `AuthLoginTest` | `POST /token/refresh`(회전·재사용 탐지), JWT `issuer` 검증 · `refresh.test.js` |
 | 3-3 OAuth 2.0·OIDC | `oidc` 프로필, `/oauth2/authorization/idp` · `OAuthLoginTest` | `GET /login/idp`, `GET /callback`(openid-client 6) · `oidc.test.js` |
