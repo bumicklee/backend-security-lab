@@ -36,7 +36,7 @@ dependencies {
     // 3-3 OAuth 2.0 · OIDC 로그인 (Boot 4 스타터 이름)
     implementation("org.springframework.boot:spring-boot-starter-security-oauth2-client")
     // 3-6 패스키(WebAuthn) — Spring Security 의 webAuthn() 이 webauthn4j 로 서명을 검증한다
-    implementation("com.webauthn4j:webauthn4j-core:0.31.10.RELEASE")
+    implementation("com.webauthn4j:webauthn4j-core:0.31.11.RELEASE")
     implementation("org.springframework.security:spring-security-webauthn")
     // 4-2 서버 렌더링 화면(th:text 자동 이스케이프) + 서식 있는 본문 허용 목록 정화
     implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
