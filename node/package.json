@@ -18,7 +18,7 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
-    "@aws-sdk/client-kms": "3.1148.0",
+    "@aws-sdk/client-kms": "3.1152.0",
     "@aws-sdk/client-secrets-manager": "3.1148.0",
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1",
