@@ -5,7 +5,7 @@ export const ALERT_AT = 300;
 export const BLOCK_OVER = 1000;
 
 export const bulkLookupGuard = (redis, events) => async (req, res, next) => {
-  const user = req.user.sub;                                       // 화면: req.user.id (이 저장소의 JWT 는 sub)
+  const user = req.user.sub;                                       // 화면과 같이 req.user.sub (JWT 의 sub = 사용자 이름)
   const key = `lookup:${user}:${new Date().toISOString().slice(0, 10)}`;
   const n = await redis.incr(key);                                 // 계정별 하루 조회 수
   if (n === 1) await redis.expire(key, 2 * 86400);

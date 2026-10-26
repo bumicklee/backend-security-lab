@@ -93,6 +93,20 @@ export function assertSafeBind({ labMode, host }) {
   }
 }
 
+// app.listen 실패(Express 5 는 콜백에 오류를 넘긴다) → 학생이 바로 알아볼 수 있는 안내 문장
+export function describeListenError(err, { host, port }) {
+  if (err?.code === "EADDRINUSE") {
+    return (
+      `${host}:${port} 포트를 이미 다른 프로그램이 쓰고 있습니다. ` +
+      `그 프로그램을 끄거나 다른 포트로 실행하세요 (예: PORT=3001 npm start).`
+    );
+  }
+  if (err?.code === "EACCES") {
+    return `${host}:${port} 에 바인딩할 권한이 없습니다. 1024 이상 포트를 쓰세요 (예: PORT=3001 npm start).`;
+  }
+  return `${host}:${port} 에서 서버를 시작하지 못했습니다: ${err?.message ?? err}`;
+}
+
 export function isLoopbackHost(host) {
   return LOOPBACK.has(host);
 }

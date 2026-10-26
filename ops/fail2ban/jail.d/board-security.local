@@ -6,6 +6,8 @@ enabled  = true
 filter   = board-security
 port     = http,https
 logpath  = /var/log/board/security.log
+# Ubuntu 24.04·Debian 12 의 기본 backend 는 systemd(저널) → logpath 파일을 읽지 않는다. 파일을 읽도록 지정
+backend  = auto
 maxretry = 20
 findtime = 5m
 bantime  = 1h

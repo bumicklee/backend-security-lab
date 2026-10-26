@@ -4,6 +4,6 @@ import { defineConfig } from "prisma/config";
 export default defineConfig({
   schema: "prisma/schema.prisma",
   datasource: {
-    url: process.env.DATABASE_URL ?? "postgresql://lab:lab-only-password@localhost:5432/board",
+    url: process.env.DATABASE_URL ?? "postgresql://lab:lab-only-password@localhost:5432/express_board",
   },
 });

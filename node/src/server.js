@@ -1,5 +1,5 @@
 // 서버 진입점. LAB_MODE=vulnerable 은 127.0.0.1 바인딩일 때만 허용한다.
-import { assertSafeBind, loadConfig } from "./config.js";
+import { assertSafeBind, describeListenError, loadConfig } from "./config.js";
 import { createApp } from "./create-app.js";
 import { createDeps } from "./data/index.js";
 import { purgeExpired, scheduleDaily } from "./jobs/purge-expired.js";
@@ -21,7 +21,12 @@ if (config.secretsSource === "aws") {
 const deps = await createDeps(config);
 const app = createApp(deps, { labMode: config.labMode });
 
-const server = app.listen(config.port, config.host, () => {
+const server = app.listen(config.port, config.host, (err) => {
+  // Express 5: 포트 충돌(EADDRINUSE) 등 listen 오류가 콜백 인자로 온다
+  if (err) {
+    console.error(`[시작 실패] ${describeListenError(err, config)}`);
+    process.exit(1);
+  }
   deps.logger.info("listening", {
     url: `http://${config.host}:${config.port}`,
     labMode: config.labMode ? "vulnerable" : "off",

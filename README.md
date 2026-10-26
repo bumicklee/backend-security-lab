@@ -4,7 +4,7 @@
 
 > **반드시 지켜 주세요.** 이 저장소에는 수업용으로 **일부러 취약하게 만든 코드**가 들어 있습니다. 내 PC나 내가 관리하는 실습 VM에서만 실행하고, 인터넷에 열지 마세요. 허가받지 않은 시스템에 수업 내용을 시험하는 것은 불법입니다.
 
-> 체크리스트·명령어 정리 PDF는 이 저장소에 없습니다. 인프런 강의의 **수업자료**에서 받으세요.
+> 체크리스트·명령어 정리 PDF와 수업별 **「실습 따라 하기 가이드」**(영상의 명령을 내 PC·실습 VM에서 그대로 따라 하는 단계별 안내)는 이 저장소에 없습니다. 인프런 강의의 **수업자료**에서 받으세요.
 
 ## 구성
 
@@ -52,6 +52,8 @@ curl -s 127.0.0.1:3000/health; echo     # {"status":"ok"}
 ssh -L 8080:127.0.0.1:8080 -L 3000:127.0.0.1:3000 admin@lab-vm.example.com
 ```
 
+> **1-1 하드닝을 적용한 VM 이라면** 드롭인(`10-hardening.conf`)의 `AllowTcpForwarding no` 때문에 터널이 열리지 않습니다(`channel 2: open failed: administratively prohibited`). 실습 VM 에서는 그 줄을 `AllowTcpForwarding local`(내 PC → 서버 방향의 `-L` 터널만 허용)로 바꾸고 `sudo sshd -t && sudo systemctl reload ssh` 하거나, 터널 없이 VM 안에서 `curl` 로 실습하세요. 운영 서버는 `no` 를 유지합니다.
+
 정리: `docker compose down` (데이터까지 지우려면 `docker compose down -v`)
 
 **`localhost:3000`에서 다른 화면이 나오면** 내 PC에서 다른 프로그램(예: 프런트엔드 개발 서버)이 3000번 포트를 쓰고 있는 것입니다. `curl -s 127.0.0.1:3000/health`처럼 IPv4 주소로 접속하거나, 그 프로그램을 끄세요.
@@ -82,12 +84,16 @@ Express는 안전한 코드를 루트 경로(`/posts`, `/files` …)에도 열�
 ```bash
 docker compose up -d db mongo             # DB만 띄우기
 
-# Spring
+# Spring (DB 접속 기본값이 compose 의 db 와 같음: lab / board_spring, 환경 변수 필요 없음)
 cd spring && ./gradlew bootRun --args='--spring.profiles.active=lab-vulnerable'
 
-# Express
-cd node && npm ci && LAB_MODE=vulnerable HOST=127.0.0.1 npm start
+# Express (DB 접속 기본값: lab / express_board)
+cd node
+npm ci                                    # 의존성 설치 (+ prisma generate)
+npx prisma db push                        # 테이블 만들기 (처음 한 번, 스키마가 바뀌면 다시)
+LAB_MODE=vulnerable HOST=127.0.0.1 npm start
 #   DB 없이: npm run dev:lab
+#   3000 번을 다른 프로그램이 쓰고 있으면: PORT=3001 LAB_MODE=vulnerable HOST=127.0.0.1 npm start
 ```
 
 ## 테스트
@@ -167,6 +173,8 @@ npm test -- tests/injection.test.js   # 파일 하나만 (ESM이라 npx jest 대
 - 섹션 5: 회원 테이블(`members`, 전화번호는 암호문 + 블라인드 인덱스), 주문 `created_at` 컬럼, 접속기록 테이블(`privacy_access_log`, Spring)이 새로 생깁니다. 회원 시드(alice·bob·탈퇴한 carol)는 새 DB 에만 들어갑니다. `docker compose down -v` 후 다시 띄우세요.
 - 섹션 5 에서 화면과 달라진 부분은 아래 "섹션 5" 목록과 각 README 에 정리했습니다.
 - 섹션 6: compose 의 `spring`·`express` 는 읽기 전용 루트로 돌고, 쓰기는 `/tmp`(메모리)와 새 볼륨 `spring-data`·`express-data`(`/app/data`)에만 합니다. 이전에 띄운 적이 있다면 `docker compose down -v` 후 `docker compose up -d --build` 로 다시 띄우세요. 섹션 6 에서 화면과 달라진 부분은 아래 "섹션 6" 목록에 정리했습니다.
+- 4-4: `RateLimitFilter` 의 버킷 빌더에 화면에 없는 `.withCustomTimePrecision(clock)` 한 줄이 있습니다. 운영 시계는 시스템 시각이고(`capacity(100).refillGreedy(100, ONE_MIN)` 은 화면과 같음), `RateLimitFilterTest` 만 멈춘 시계를 넣어 느린 PC 에서도 101번째 요청이 항상 429 가 되게 합니다(분당 100회면 0.6초마다 토큰이 1개씩 다시 채워지기 때문).
+- 4-2: 게시글 77번(XSS 예시)은 Spring 에도 시드됩니다(`/api/posts/77/view` 는 이스케이프, 실습 모드의 `/lab/posts/77/view` 는 그대로).
 - 섹션 4-4: 프록시 신뢰 설정(Express `TRUST_PROXY`, Spring `server.tomcat.remoteip.internal-proxies`)은 실제로 거치는 로드밸런서 구성에 따라 달라집니다. 운영에 올리기 전 **스테이징에서 `X-Forwarded-For` 를 바꿔 보내도 같은 키로 세는지 꼭 확인**하세요. 로컬·compose 처럼 앞에 프록시가 없으면 Express 는 `TRUST_PROXY=false`(기본값)여야 합니다.
 
 ### 섹션 2
@@ -192,22 +200,23 @@ npm test -- tests/injection.test.js   # 파일 하나만 (ESM이라 npx jest 대
   파기 배치는 화면처럼 탈퇴 회원(기본 30일, `app.privacy.member-retention`)과 주문(기본 5년, `app.privacy.order-retention`)의 보존 기간을 나눴습니다. 가입 DTO 는 사용자 이름 칸(50자)에 맞춰 이메일에 `@Size(max = 50)` 를 더했습니다.
 - 5-5: 화면의 `prisma.member.findMany(...)`, 탈퇴 회원 제외(`where: { withdrawnAt: null }`), 컬럼 허용 목록(`fields=id,nickname,email,createdAt`)은 저장소와 같습니다. 화면의 `page(req)`·`actorId` 는 줄여 쓴 것이고, 저장소는 `actorId: req.user.sub` 로 넘깁니다. 알림은 `deps.alert("bulk-export", …)`(기본: 경고 로그), 기준은 `EXPORT_ALERT_THRESHOLD`(기본 10,000)입니다. 누적 카운터는 서버 메모리입니다.
   화면 s5 의 ufw 규칙은 실습 서버 예시(내부 DNS·NTP 10.0.0.2, 프록시 10.0.2.10, DB 10.0.1.20)이고 저장소에는 없습니다.
-- 5-6: 화면의 명령을 `ops/backup/*.sh` 로 묶었습니다. `restic forget --prune` 은 앱 서버가 아니라 관리 서버용 `prune.sh` 에 따로 두었고, 복구 훈련은 이름에 `restore_test` 가 들어간 DB 에만 복원합니다.
-- 5-7: KMS 서명은 Express 에만 있습니다(`JWT_KMS_KEY_ID`, 데이터 키용 `KMS_KEY_ID` 도 필요). 화면의 헤더 `kid`, `MessageType: "RAW"`, `issued.save(jti, exp, sub)`(3-6 "모든 기기 로그아웃"용 `sub`)는 저장소와 같습니다. `ops/sql/find_unissued_tokens.sql` 이 읽는 `access_log`·`token_issued` 는 감사 DB 예시(`ops/sql/audit_schema.sql`)이고, 예제 서비스가 직접 쓰지는 않습니다.
+- 5-6: 화면의 명령을 `ops/backup/*.sh` 로 묶었습니다. `backup.sh` 는 스냅숏 호스트 이름을 `--host "${BACKUP_HOST}"`(기본 `web1`)로 남겨, hostname 이 `web1` 이 아닌 실습 VM 에서도 `check.sh`·`restore-drill.sh` 가 스냅숏을 찾습니다. restic 은 0.17 이상이 필요합니다(Ubuntu 24.04 의 apt 패키지는 0.16.4 — 설치 방법은 `ops/backup/README.md`). `restic forget --prune` 은 앱 서버가 아니라 관리 서버용 `prune.sh` 에 따로 두었고, 복구 훈련은 이름에 `restore_test` 가 들어간 DB 에만 복원합니다.
+- 5-7: KMS 서명은 Express 에만 있습니다(`JWT_KMS_KEY_ID`, 데이터 키용 `KMS_KEY_ID` 도 필요). 화면의 헤더 `kid`, `MessageType: "RAW"`, `issued.save(jti, exp, sub)`(3-6 "모든 기기 로그아웃"용 `sub`)는 저장소와 같습니다. `ops/sql/find_unissued_tokens.sql` 이 읽는 `access_log`·`token_issued` 는 감사 DB 예시(`ops/sql/audit_schema.sql`)이고, 예제 서비스가 직접 쓰지는 않습니다. 이 쿼리에는 화면 s7 에 없는 `AND a.jti IS NOT NULL` 이 더해졌습니다. 토큰 없이 온 요청(로그인 전·공개 경로)은 `jti` 가 NULL 이라, 이 줄이 없으면 맨 위에 NULL 한 줄이 "발급 기록에 없는 토큰"처럼 나옵니다.
 
 ### 섹션 6
 
 화면의 `<커밋 SHA>`·`<다이제스트>` 자리는 화면 폭(한 줄 95자) 때문에 남겨 둔 것이고, 저장소에서는 실제 값으로 고정했습니다(2026-10-26 기준). 6-4 s4 의 `actions/checkout` 만은 화면에도 저장소와 같은 실제 SHA(v5.1.0)가 나옵니다. 액션은 Dependabot(`github-actions`)이, 베이스 이미지 다이제스트는 Dependabot(`docker`)이 새 버전을 제안합니다.
 
 - 6-1: `.trivyignore.yaml` 은 화면 그대로입니다(맨 위 설명 주석만 더해짐, CVE 번호는 가짜). `rescan-prod.yml` 은 러너(`ubuntu-24.04`)·`fail-fast: false`·cron·권한·스캔 옵션이 화면과 같고, 화면에서 주석으로 생략한 단계(trivy 0.76.1 설치 + SHA-256 체크섬 확인, 레지스트리 로그인 `docker/login-action`, DB 갱신 `--download-db-only`)와 `workflow_dispatch`, 업로드 조건(`if: always() && hashFiles('out.sarif') != ''`), 체크아웃 `persist-credentials: false` 가 더해졌습니다. 화면의 `registry.example.com/${{ matrix.image }}:prod` 는 `env.REGISTRY` 로 뺐습니다. 레지스트리·이미지 목록·`REGISTRY_USER`·`REGISTRY_READ_TOKEN` 은 예시입니다.
-- 6-2: 화면과 저장소 모두 계정 키 `lookup:<계정>:<UTC 날짜>`, 300번째 `bulk_lookup`, 1001번째 `bulk_block`, 1000 초과 429 이고, 이벤트에 조회 수(`count`)를 함께 남깁니다(화면 s9 의 jq `.count`). Express 는 화면처럼 `req.user.sub` 를 씁니다. 나머지 앱 코드 차이(카운터 구현, 등록 위치, 429 본문)는 `node/README.md`·`spring/README.md` 에 있습니다. fail2ban jail 파일 이름은 화면과 같은 `board-security.local` 이고, `failregex`·`logpath`·`maxretry`·`findtime`·`bantime` 은 화면 값 그대로이며, 화면에 없는 `datepattern`(필터)·`port`·`ignoreip`(jail)이 더해졌습니다. `fail2ban-regex` 로 확인했습니다(`authz_denied`·`validation_reject` 만 매칭, `bulk_*` 는 매칭 안 됨). 보안 로그 경로는 서버에서는 `/var/log/board/security.log`, 앱 기본값은 `data/log/security.log`(`SECURITY_LOG_FILE`)입니다. 화면 s2 의 `access.log` 집계와 s9 의 재현 결과는 예시 출력입니다.
+  화면 s6 의 `osv-scanner`·`trivy fs` 가 읽는 `spring/gradle.lockfile` 은 Gradle 의존성 잠금(`spring/build.gradle.kts` 의 `dependencyLocking { lockAllConfigurations() }`)으로 만든 파일입니다. Spring 의존성을 바꾸면 `cd spring && ./gradlew dependencies --write-locks` 로 다시 만들고 함께 커밋합니다. 패키지 수와 찾은 취약점은 화면(예시 출력)과 다릅니다.
+- 6-2: 화면과 저장소 모두 계정 키 `lookup:<계정>:<UTC 날짜>`, 300번째 `bulk_lookup`, 1001번째 `bulk_block`, 1000 초과 429 이고, 이벤트에 조회 수(`count`)를 함께 남깁니다(화면 s9 의 jq `.count`). Express 는 화면처럼 `req.user.sub` 를 씁니다. 나머지 앱 코드 차이(카운터 구현, 등록 위치, 429 본문)는 `node/README.md`·`spring/README.md` 에 있습니다. fail2ban jail 파일 이름은 화면과 같은 `board-security.local` 이고, `failregex`·`logpath`·`maxretry`·`findtime`·`bantime` 은 화면 값 그대로이며, 화면에 없는 `datepattern`(필터)·`port`·`ignoreip`·`backend = auto`(jail)이 더해졌습니다. Ubuntu 24.04 의 fail2ban 은 기본 backend 가 `systemd`(저널)라서 `backend = auto` 가 없으면 `logpath` 파일을 읽지 않습니다(화면 s8 의 `grep -E 'logpath|maxretry|findtime|bantime'` 출력은 같음). `fail2ban-regex` 로 확인했습니다(`authz_denied`·`validation_reject` 만 매칭, `bulk_*` 는 매칭 안 됨). 보안 로그 경로는 서버에서는 `/var/log/board/security.log`, 앱 기본값은 `data/log/security.log`(`SECURITY_LOG_FILE`)입니다. 화면 s2 의 `access.log` 집계와 s9 의 재현 결과는 예시 출력입니다.
 - 6-3: `pr-security.yml` 의 러너(`ubuntu-24.04`)·권한·`fetch-depth: 0`·`--baseline-commit`·`fail-on-severity: high` 는 화면과 같습니다. semgrep 은 화면의 `semgrep --config …` 에 `scan` 하위 명령과 `--metrics=off` 를 붙였고(화면은 한 줄 폭 때문에 기본 명령인 `scan` 을 생략), 컨테이너 작업에서 git 이 작업 폴더를 거부하지 않도록 `safe.directory` 단계가 더해졌습니다. 화면의 `dependency-review-action@<SHA>` 는 `<커밋 SHA>` 와 같은 뜻입니다. 화면에서 "저장소 설정으로 켤 수 있다"고 한 CodeQL(v4, `javascript-typescript`·`java-kotlin`, `build-mode: none`)을 `codeql` 작업으로 넣었습니다(기본 설정을 켜면 이 작업은 지웁니다). `.semgrep/board.yml` 은 화면 그대로이고, 규칙 테스트 예시(`board.js`·`board.java`)와 `.semgrepignore` 가 더해졌습니다. `dast-staging.yml` 은 화면과 같이 `-I`(경고만으로는 실패하지 않음)를 쓰고, 화면의 `ghcr.io/zaproxy/zaproxy:stable` 을 다이제스트로 고정했으며(`@sha256:…`, 화면은 13줄 제한 때문에 태그만), 보고서를 아티팩트로 올리고 `workflow_dispatch` 가 더해졌습니다. `zap-rules.conf` 맨 위에 주석 세 줄이 있습니다(화면의 `grep -v '^#'` 출력은 같음). 화면 s2 의 `node/src/routes/search.js` 는 저장소에 없는 PR 예시입니다. 화면 s9 는 `zap-scan.log` 에서 규칙 줄과 요약 줄만 고른 출력입니다(`grep -E '^(IGNORE|WARN|FAIL)' zap-scan.log | tr '\t' ' '`, ZAP 의 요약 줄은 탭 구분).
 - 6-4: `release.yml` 의 앞부분(트리거, 기본 읽기 권한, 작업 권한 `contents: read, id-token: write, packages: write, attestations: write`, 러너 `ubuntu-24.04`, SHA 고정, OIDC, `npm ci --ignore-scripts`)은 화면과 같습니다. 화면의 `configure-aws-credentials@<전체 커밋 SHA>` 는 폭 때문에 자리 표시이고 저장소는 v5.1.1 의 실제 SHA 입니다. 화면의 `role-to-assume: arn:aws:iam::111122223333:role/board-release` 는 저장소 변수(`RELEASE_ROLE_ARN`)로 받습니다(버킷은 `SBOM_BUCKET`). 그 뒤에 `setup-node`, 테스트(`prisma generate`), GHCR 이미지 빌드·푸시, SBOM(`anchore/sbom-action`, CycloneDX) → S3 보관, `cosign sign`·`cosign attest`(키리스), `actions/attest-build-provenance`(SLSA) 단계가 더해졌습니다. `dependabot.yml` 은 화면(npm·gradle 의 cooldown 7일, github-actions)에 `github-actions` cooldown 과 `docker` 생태계(`/node`·`/spring`)가 더해졌습니다(화면 13줄 제한). 화면 s6·s7 의 `registry.example.com/board-api@sha256:4f1e9c…`, SBOM 파일 이름, 터미널 출력은 예시이고, 저장소는 GHCR 에 올립니다. `actions/checkout` 은 v5.1.0 기준으로 고정했습니다(2026-10 최신은 v6 계열). SHA 로 고정했으므로 동작은 그대로이고, Dependabot(`github-actions`)이 새 버전을 제안합니다.
   배포 전 확인 명령(화면 s7): `cosign verify ghcr.io/<owner>/<repo>/board-api@sha256:… --certificate-identity-regexp '^https://github.com/<owner>/<repo>/' --certificate-oidc-issuer https://token.actions.githubusercontent.com`, `gh attestation verify --owner <owner> oci://ghcr.io/<owner>/<repo>/board-api@sha256:…`
 - 6-5: 화면의 `node/Dockerfile` 도 저장소처럼 `FROM`·`USER` 의 주석을 윗줄에 둡니다(**Dockerfile 은 명령 줄 끝 주석을 지원하지 않습니다.** `FROM … # …` 은 빌드 오류, `USER 65532:65532 # …` 는 주석까지 값이 됨). 두 단계 모두 다이제스트로 고정했습니다. 화면은 핵심만 보여 주므로 저장소에 더해진 것(빌드 단계의 `openssl`, `prisma` 파일 복사와 `npm rebuild`·`prisma generate`, `views/`·`data/` 복사와 `data/` 만 65532 소유, `ENV`·`EXPOSE 3000`·`HEALTHCHECK`, `CMD ["scripts/start.js"]`)은 `node/README.md` 에 있습니다. compose 는 화면의 `board-api` 서비스(`image: …@sha256:<다이제스트>`)가 저장소의 `express` 서비스(`build: ./node`)에 해당하고, 사용자·`read_only`·`tmpfs`·`cap_drop`·`no-new-privileges`·`pids_limit`·`mem_limit`·포트(`127.0.0.1:3000:3000`)는 같습니다. 저장소에는 `/app/data` 볼륨과 환경 변수, `spring` 서비스(UID 10001, 768m)가 더해졌습니다. 화면 s2·s5·s7·s8 의 터미널 출력(크기 수치, PID, `ci-runner` 등)은 예시입니다.
 - 6-6: `k8s/network-policy.yaml` 의 ①·② 는 화면과 같고(`apiVersion` 포함), 화면 s8 의 ③ `data-stores`(DB 파드의 들어오기를 board-api 에서만 허용)도 들어 있습니다. **기본 차단은 DB 파드의 들어오기도 막으므로, ③ 이 없으면 `nc … postgres 5432` 가 `open` 이 아니라 시간 초과입니다**(minikube + Calico 에서 확인). 화면 ③ 은 postgres 만 고르지만, 저장소는 Express 가 쓰는 MongoDB·Redis 도 함께 고릅니다(`matchExpressions` `app In [postgres, mongo, redis]`, 포트 5432·27017·6379). 같은 이유로 ② 에는 MongoDB·Redis 나가기 규칙과 `policyTypes`, 인그레스 포트(3000)가 더해졌습니다. `board-api.yaml` 에는 화면의 파드 spec(`/tmp` emptyDir `sizeLimit: 64Mi` 포함)에 Deployment·Service·포트·`envFrom`·프로브·자원 제한·`/app/data` 빈 볼륨이 더해졌고, 이미지 다이제스트는 예시 값(0…0)입니다. `namespace.yaml`(PSA 라벨, `warn`·`audit` 포함)과 `rbac.yaml` 의 ServiceAccount(`automountServiceAccountToken: false`)는 화면에서 명령과 설명으로만 다룹니다. 확인용 `nettest.yaml`(busybox, restricted 통과)과 거부 확인용 `debug-pod.yaml`(privileged)이 있습니다.
 - 6-7: 저장소에 대응 파일이 없습니다(AWS 계정 설정은 예시 명령과 정책으로만 다룸). 화면 s7 의 신뢰 정책 sub 조건 `repo:example/board:ref:refs/heads/main` 은 `release.yml`(main 푸시, `environment` 없음)이 받는 토큰의 sub 와 같습니다. 배포 작업에 `environment:` 를 더하면 sub 는 `repo:<owner>/<repo>:environment:<이름>` 으로 바뀌므로 신뢰 정책도 함께 바꿉니다.
-- 6-8: 화면의 Sigma 규칙(`detections/linux/new-systemd-service.yml`)에 `id`·`description`·`author`·`date` 가 더해졌습니다(화면 13줄 제한). 화면의 헌팅 명령은 `ops/hunting/hunt-persistence.sh` 에 묶었고, crontab 반복(`… | while read -r u`)과 삭제된 실행 파일 찾기(`find /proc … -printf '%p -> %l\n' | grep '(deleted)'`)는 화면과 같습니다. 스크립트는 root 로 실행하므로 화면의 `sudo` 가 없고, 기간은 인자(기본 14일), 인증 로그는 `tail -5` 입니다. 1-6 의 auditd 규칙(`50-server.rules`)은 `/etc/systemd/system` 을 감시하지 않으므로, Sigma 규칙이 동작하려면 `detections/linux/60-persistence.rules`(화면 s10 과 같은 `-w /etc/systemd/system -p wa -k systemd_persist`)를 `/etc/audit/rules.d/` 에 더해야 합니다. 사용자 서비스 폴더(`~/.config/systemd/user/`)는 사용자마다 감시 규칙을 따로 더해야 기록이 남습니다. `hunt-persistence.sh` 의 cron 목록은 화면 s6 과 같이 `--time-style=long-iso`(분 단위 시각)입니다.
+- 6-8: 화면의 Sigma 규칙(`detections/linux/new-systemd-service.yml`)에 `id`·`description`·`author`·`date` 가 더해졌습니다(화면 13줄 제한). 화면의 헌팅 명령은 `ops/hunting/hunt-persistence.sh` 에 묶었고, crontab 반복(`… | while read -r u`)과 삭제된 실행 파일 찾기(`find /proc … -printf '%p -> %l\n' | grep '(deleted)'`)는 화면과 같습니다. 스크립트는 root 로 실행하므로 화면의 `sudo` 가 없고, 기간은 인자(기본 14일), 인증 로그는 `tail -5` 입니다. 1-6 의 auditd 규칙(`50-server.rules`)은 `/etc/systemd/system` 을 감시하지 않으므로, Sigma 규칙이 동작하려면 `detections/linux/60-persistence.rules`(화면 s10 과 같은 `-w /etc/systemd/system -p wa -k systemd_persist`)를 `/etc/audit/rules.d/` 에 더해야 합니다. 사용자 서비스 폴더(`~/.config/systemd/user/`)는 사용자마다 감시 규칙을 따로 더해야 기록이 남습니다. `hunt-persistence.sh` 의 cron 목록은 화면 s6 과 같이 `--time-style=long-iso`(분 단위 시각)이고, authorized_keys 목록은 화면 s5 와 같은 `find … -printf '%TF %TR %u %p\n'`(날짜·시각·소유자·경로)입니다.
 - 6-9: `ops/ir/ir-collect.sh` 는 화면과 같은 순서·같은 파일 이름이고 마지막에 결과 폴더 경로를 출력합니다(화면 s6). 저장소에는 root 확인, 외부 저장소 마운트 확인(`IR_BASE`, 훈련용 `IR_ALLOW_LOCAL=1`), 오류 기록(`collect-errors.log` — 화면 s6 의 `ls` 목록에는 없음), avml 이 없을 때 메모리 덤프 생략, `umask 077` 이 더해졌습니다. 해시 대상은 화면과 같은 `*.txt` + `memory.lime` 입니다.
 - 6-10: 화면 s4 의 두 쿼리는 `ops/sql/breach_scope.sql` 과 같은 조건(주소·앱 이름·첫 침입 시각)이고, 저장소는 psql 변수(`addr`·`since`)를 씁니다. `audit.read_events` 는 `ops/sql/audit_read_events.sql`(표 정의, pgaudit 등에서 적재)입니다. 화면의 `notice-draft.txt` 는 `docs/incident/breach-notice-template.md` 의 "이용자 통지문" 블록이고, 화면에 없는 손해배상 청구 창구·조문 번호, 분쟁조정위원회 전화번호(1833-6972, 2026-10-26 kopico.go.kr·pipc.go.kr 에서 확인), "그 밖에 대통령령으로 정하는 사항" 칸과 **사용 전 최신 법 제34조·시행령 확인** 안내가 있습니다. 회고 틀은 `docs/incident/postmortem-template.md` 입니다.
 

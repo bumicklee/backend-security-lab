@@ -59,17 +59,22 @@ Compose 의 DB 포트를 `127.0.0.1` 에만 연 상태에서:
 
 ```bash
 cp .env.example .env   # 필요하면 값 수정
-npx prisma db push     # 테이블 생성 (DB 가 없으면 만든다)
+npm ci                 # 처음 한 번 (+ prisma generate)
+npx prisma db push     # 테이블 생성 (DB 가 없으면 만든다). 기본 주소 = compose db 의 express_board
 HOST=127.0.0.1 LAB_MODE=vulnerable \
 DATABASE_URL=postgresql://lab:lab-only-password@localhost:5432/express_board \
 MONGO_URL=mongodb://localhost:27017 node src/server.js
 ```
+
+3000 번 포트를 다른 프로그램이 쓰고 있으면 서버가 `[시작 실패] 127.0.0.1:3000 포트를 이미 다른 프로그램이 쓰고 있습니다 …` 를 출력하고 종료 코드 1 로 끝납니다. `PORT=3001` 처럼 다른 포트를 주세요.
 
 다른 PC 의 프록시 도구(Burp·ZAP)에서 가상 서버의 실습 모드에 접근하려면 포트를 열지 말고 SSH 터널을 씁니다.
 
 ```bash
 ssh -L 3000:127.0.0.1:3000 admin@198.51.100.10   # 이후 내 PC 에서 localhost:3000
 ```
+
+1-1 의 SSH 드롭인(`AllowTcpForwarding no`)을 적용한 VM 에서는 터널이 거부됩니다. 실습 VM 에서는 `AllowTcpForwarding local` 로 바꾸거나 VM 안에서 직접 실습하세요(최상위 README 참고).
 
 ## 환경 변수
 

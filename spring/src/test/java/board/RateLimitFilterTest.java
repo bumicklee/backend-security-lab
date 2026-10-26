@@ -5,6 +5,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import io.github.bucket4j.TimeMeter;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -13,8 +14,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -22,12 +26,26 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 /**
  * 4-4 요청 제한 (RateLimitFilter · Bucket4j, 분당 100회).
  * 버킷은 컨텍스트 안에서 공유되므로 테스트마다 다른 키(IP·사용자)를 쓴다.
+ * 버킷 시계는 멈춰 둔다(FrozenClock): 운영 설정(refillGreedy(100, 1분))은 0.6초마다 토큰을 1개 채우므로,
+ * 느린 PC 에서 101번 요청에 1분의 몇 %라도 걸리면 101번째가 429 가 아닐 수 있다.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = "app.rate-limit.per-minute=100")
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@Import(RateLimitFilterTest.FrozenClock.class)
 class RateLimitFilterTest {
+    @TestConfiguration
+    static class FrozenClock {
+        @Bean
+        TimeMeter rateLimitClock() {
+            return new TimeMeter() {
+                @Override public long currentTimeNanos() { return 1_000_000_000L; }
+                @Override public boolean isWallClockBased() { return false; }
+            };
+        }
+    }
+
     @Autowired MockMvc mvc;
     @LocalServerPort int port;
 

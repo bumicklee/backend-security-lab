@@ -4,6 +4,7 @@ SELECT a.jti, count(*) AS calls, count(DISTINCT a.ip) AS ips
   FROM access_log a
   LEFT JOIN token_issued t ON t.jti = a.jti
  WHERE t.jti IS NULL
+   AND a.jti IS NOT NULL          -- 토큰 없이 온 요청(로그인 전·공개 경로)은 jti 가 NULL → 제외
    AND a.at > now() - interval '1 day'
  GROUP BY a.jti
  ORDER BY calls DESC

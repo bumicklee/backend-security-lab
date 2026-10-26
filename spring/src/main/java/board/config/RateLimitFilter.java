@@ -2,6 +2,7 @@ package board.config;
 
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.ConsumptionProbe;
+import io.github.bucket4j.TimeMeter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -11,6 +12,7 @@ import java.security.Principal;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -24,6 +26,9 @@ import org.springframework.web.filter.OncePerRequestFilter;
  *
  * <p>Spring Security 필터 체인 뒤에 등록된다(기본 순서) → getUserPrincipal() 로 로그인 사용자를 본다.
  * 실습용 메모리 버킷이다. 서버가 여러 대면 Redis 등 공유 저장소(bucket4j-redis 등)로 바꾼다.
+ *
+ * <p>시계(TimeMeter)는 기본으로 시스템 시각이다. 테스트는 멈춘 시계 빈을 넣어, 느린 PC 에서도
+ * 요청 사이에 토큰이 다시 채워지지 않게 한다(분당 100회면 0.6초마다 1개씩 채워짐).
  */
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
@@ -31,9 +36,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
     private final long perMinute;
+    private final TimeMeter clock;
 
-    public RateLimitFilter(@Value("${app.rate-limit.per-minute:100}") long perMinute) {
+    public RateLimitFilter(@Value("${app.rate-limit.per-minute:100}") long perMinute,
+                           ObjectProvider<TimeMeter> clock) {
         this.perMinute = perMinute;
+        this.clock = clock.getIfAvailable(() -> TimeMeter.SYSTEM_MILLISECONDS);
     }
 
     @Override
@@ -51,6 +59,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         Bucket b = buckets.computeIfAbsent(key,
             k -> Bucket.builder().addLimit(l -> l
                 .capacity(perMinute).refillGreedy(perMinute, ONE_MIN))
+                .withCustomTimePrecision(clock)
                 .build());
         ConsumptionProbe probe = b.tryConsumeAndReturnRemaining(1);
         if (!probe.isConsumed()) {

@@ -12,7 +12,8 @@ section "외부로 나가는 연결 (Local · Peer · Process)"
 ss -Htnp state established | awk '{print $3, $4, $5}' | column -t
 
 section "최근 ${DAYS}일 안에 바뀐 authorized_keys (T1098.004)"
-find / -xdev -name authorized_keys -mtime "-$DAYS" -ls 2>/dev/null
+# 화면 s5 와 같은 형식: 바뀐 날짜 · 분 단위 시각 · 소유자 · 경로
+find / -xdev -name authorized_keys -mtime "-$DAYS" -printf '%TF %TR %u %p\n' 2>/dev/null
 grep -h 'Accepted publickey for root' /var/log/auth.log 2>/dev/null | tail -5
 
 section "사용자별 crontab (T1053.003)"

@@ -17,6 +17,12 @@ repositories {
     mavenCentral()
 }
 
+// 6-1 의존성 잠금: 해석된 버전 전체를 gradle.lockfile 에 고정한다 → osv-scanner·trivy fs 가 이 파일로 Spring 의존성을 본다.
+// 의존성을 바꾼 뒤에는 ./gradlew dependencies --write-locks 로 다시 만든다
+dependencyLocking {
+    lockAllConfigurations()
+}
+
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-security")
@@ -26,7 +32,7 @@ dependencies {
     // 업로드 파일의 실제 형식을 매직 바이트로 판별 (2-5)
     implementation("org.apache.tika:tika-core:4.1.0")
     // 3-1 Argon2PasswordEncoder 가 쓰는 Argon2 구현 (Bouncy Castle)
-    implementation("org.bouncycastle:bcprov-jdk18on:1.82")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.85")
     // 3-3 OAuth 2.0 · OIDC 로그인 (Boot 4 스타터 이름)
     implementation("org.springframework.boot:spring-boot-starter-security-oauth2-client")
     // 3-6 패스키(WebAuthn) — Spring Security 의 webAuthn() 이 webauthn4j 로 서명을 검증한다

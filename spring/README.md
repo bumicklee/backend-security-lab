@@ -39,9 +39,8 @@ JDK 25가 없어도 됩니다. Gradle toolchain(foojay)이 JDK 25를 자동으�
 단, Gradle 자체를 실행하는 JDK는 17 이상이어야 합니다(`JAVA_HOME`).
 
 ```bash
-# DB만 컨테이너로 (최상위 compose 의 db 서비스) 또는 직접:
-docker run -d --name board-db -p 127.0.0.1:5432:5432 \
-  -e POSTGRES_DB=board -e POSTGRES_USER=board -e POSTGRES_PASSWORD=board-EXAMPLE-only postgres:16-alpine
+# DB만 컨테이너로 (최상위 compose 의 db 서비스). 접속 기본값이 이 DB 와 같아 환경 변수가 필요 없다
+(cd .. && docker compose up -d db)       # lab / lab-only-password, DB board_spring
 
 ./gradlew bootRun                                          # 안전한 /api/** 만
 ./gradlew bootRun --args='--spring.profiles.active=lab-vulnerable'   # /lab/** 추가, 127.0.0.1:8080
@@ -71,8 +70,8 @@ docker run --rm -v "$PWD":/w -w /w eclipse-temurin:25-jdk ./gradlew test
 | `SERVER_PORT` | `8080` | HTTP 포트 |
 | `SERVER_ADDRESS` | (전체) / lab 프로필은 `127.0.0.1` | lab 프로필에서 다른 값이면 기동 실패 |
 | `SPRING_PROFILES_ACTIVE` | (없음) | `lab-vulnerable` 을 넣으면 취약 실습 경로가 켜짐 |
-| `DB_HOST` / `DB_PORT` / `DB_NAME` | `localhost` / `5432` / `board` | PostgreSQL 위치 |
-| `DB_USER` / `DB_PASSWORD` | `board` / `board-EXAMPLE-only` | DB 계정 (예시 값) |
+| `DB_HOST` / `DB_PORT` / `DB_NAME` | `localhost` / `5432` / `board_spring` | PostgreSQL 위치 (기본값 = 최상위 compose 의 `db`) |
+| `DB_USER` / `DB_PASSWORD` | `lab` / `lab-only-password` | DB 계정 (예시 값, compose 와 같음) |
 | `WEBHOOK_SECRET` | `whsec_EXAMPLE_ONLY_change_me` | 결제 웹훅 HMAC 시크릿 (예시 값) |
 | `PREVIEW_ALLOWED_HOSTS` | `example.com,www.example.com,news.example.com` | 링크 미리보기 허용 호스트 |
 | `APP_FILES_DIR` | `./data/files` | `/api/files` 기준 폴더 (강의 화면의 `/srv/files`) |
@@ -228,6 +227,7 @@ curl -si localhost:8080/api/posts -H "Origin: https://attacker.example.net" | gr
   인증이 필요한 경로는 Spring Security 가 먼저 401 을 돌려주므로, 익명 요청은 공개 경로(`GET /api/posts` 등)에서만 셉니다.
   버킷은 서버 메모리입니다(서버가 여러 대면 bucket4j-redis 등으로 공유). 테스트 프로필은 다른 테스트가 걸리지 않도록 한도를 크게 두고,
   `RateLimitFilterTest` 만 100 으로 돌립니다. `RateLimitFilterTest` 에는 "익명은 IP, 로그인 사용자는 사용자 이름" 테스트가 하나 더 있습니다.
+  버킷 빌더에는 화면에 없는 `.withCustomTimePrecision(clock)` 이 있습니다. 운영은 시스템 시각(`TimeMeter.SYSTEM_MILLISECONDS`)이고, `RateLimitFilterTest` 는 멈춘 시계(`TimeMeter` 빈)를 넣어 느린 PC 에서도 결과가 같게 합니다(`refillGreedy(100, ONE_MIN)` 은 0.6초마다 토큰을 1개 채움).
 - 4-5: `csrf(c -> c.spa())` 에서 **헤더에는 XSRF-TOKEN 쿠키 값을 그대로**, `GET /api/csrf` 본문의 `token`(BREACH 대비로 가린 값)은
   폼 파라미터(`parameterName`, 기본 `_csrf`)로 보냅니다. `CsrfCorsTest` 에는 화면의 두 테스트 외에
   "XSRF-TOKEN 쿠키 값을 X-XSRF-TOKEN 헤더로 보내면 통과한다", "허용한 Origin 에는 그 출처와 자격 증명 허용을 돌려준다"가 더 있습니다.

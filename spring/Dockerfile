@@ -2,7 +2,7 @@
 # lab-vulnerable 프로필은 127.0.0.1 바인딩을 강제하므로 컨테이너에서는 쓰지 않는다 (README 참고).
 FROM eclipse-temurin:25-jdk AS build
 WORKDIR /src
-COPY gradlew settings.gradle.kts build.gradle.kts ./
+COPY gradlew settings.gradle.kts build.gradle.kts gradle.lockfile ./
 COPY gradle gradle
 RUN ./gradlew --no-daemon dependencies > /dev/null
 COPY src src

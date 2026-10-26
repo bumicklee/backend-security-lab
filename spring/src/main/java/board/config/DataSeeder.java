@@ -11,11 +11,13 @@ import board.user.AppUserRepository;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -32,13 +34,14 @@ public class DataSeeder implements ApplicationRunner {
     private final Path filesDir;
     private final MemberRepository members;
     private final MemberService memberService;
+    private final JdbcTemplate jdbc;
 
     public DataSeeder(AppUserRepository users, PostRepository posts, OrderRepository orders, PasswordEncoder encoder,
             @Value("${app.seed.admin-password}") String adminPassword,
             @Value("${app.seed.alice-password}") String alicePassword,
             @Value("${app.seed.bob-password}") String bobPassword,
             @Value("${app.files.dir}") String filesDir,
-            MemberRepository members, MemberService memberService) {
+            MemberRepository members, MemberService memberService, JdbcTemplate jdbc) {
         this.users = users;
         this.posts = posts;
         this.orders = orders;
@@ -49,6 +52,7 @@ public class DataSeeder implements ApplicationRunner {
         this.filesDir = Path.of(filesDir);
         this.members = members;
         this.memberService = memberService;
+        this.jdbc = jdbc;
     }
 
     @Override
@@ -83,6 +87,12 @@ public class DataSeeder implements ApplicationRunner {
             posts.save(new Post("공지", "실습 서버는 인터넷에 열지 마세요.", "admin"));
             posts.save(new Post("가입 인사", "안녕하세요, alice 입니다.", "alice"));
             posts.save(new Post("질문", "파일 업로드는 몇 MB까지 되나요?", "alice"));
+        }
+        // 4-2 XSS 예시 글: Express 와 같은 id 77 고정 (/api/posts/77/view 는 이스케이프, /lab/posts/77/view 는 그대로).
+        // 자동 번호(IDENTITY)는 건드리지 않으므로 JPA 가 아니라 id 를 직접 넣는다
+        if (!posts.existsById(77L)) {
+            jdbc.update("INSERT INTO posts (id, title, content, author, created_at) VALUES (77, ?, ?, ?, ?)",
+                "이벤트 안내", "<img src=x onerror=alert(document.cookie)>", "bob", Timestamp.from(Instant.now()));
         }
         // 5-2·5-4·5-5 회원(가짜 연락처). 전화번호는 봉투 암호화 + 블라인드 인덱스로 저장된다.
         // carol 은 400일 전에 탈퇴 → 파기 배치(RetentionJob.purgeExpired)가 지운다

@@ -23,9 +23,10 @@ spring:
   application:
     name: board
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:board}
-    username: ${DB_USER:board}
-    password: ${DB_PASSWORD:board-EXAMPLE-only}
+    # 기본값 = 최상위 compose 의 db 서비스(docker compose up -d db). 실습용 예시 값
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:board_spring}
+    username: ${DB_USER:lab}
+    password: ${DB_PASSWORD:lab-only-password}
   jpa:
     open-in-view: false
     hibernate:
