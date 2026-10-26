@@ -1,0 +1,9 @@
+# 6-3 semgrep 스캔에서 뺄 경로 (이 파일이 있으면 기본 제외 목록을 대신한다)
+node_modules/
+build/
+.gradle/
+coverage/
+spring/gradle/
+node/data/
+# 규칙 테스트용 예시 코드(.semgrep/board.js·board.java)
+.semgrep/

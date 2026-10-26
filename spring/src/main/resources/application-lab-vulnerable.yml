@@ -1,0 +1,12 @@
+# 의도적으로 취약한 /lab/** 엔드포인트를 켜는 프로필.
+# 127.0.0.1 이 아닌 주소에 바인딩하면 LabSafetyGuard 가 기동을 막는다.
+server:
+  address: 127.0.0.1
+
+app:
+  lab:
+    upload-dir: ${APP_LAB_UPLOAD_DIR:./data/lab-public/uploads}
+
+logging:
+  level:
+    board.lab: DEBUG

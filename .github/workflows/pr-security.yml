@@ -1,0 +1,46 @@
+# 6-3 PR 검사: SAST(Semgrep · CodeQL) + SCA(의존성 검토). 브랜치 보호 규칙에서 sast·sca 를 필수 검사로 지정한다.
+# 핵심: --baseline-commit 으로 PR 의 출발점 대비 "새로 생긴 결과"만 실패시킨다(기존 결과는 기한을 정해 따로 정리).
+# 기준 커밋을 비교하려면 체크아웃할 때 전체 이력(fetch-depth: 0)이 필요하다.
+# 액션·컨테이너는 커밋 SHA·다이제스트로 고정(6-4). 토큰 권한은 읽기만(외부 기여자 PR 에서도 돈다).
+name: pr-security
+
+on: pull_request
+
+permissions: { contents: read }
+
+jobs:
+  sast:
+    runs-on: ubuntu-24.04
+    container: semgrep/semgrep@sha256:3db5c7af55eb1f512eac0abf0ab69a97b52c74b5e9a27314c221aee1a78d7ab2 # 1.181.1
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0, 전체 이력
+        with: { fetch-depth: 0, persist-credentials: false }
+      # 컨테이너 작업에서는 작업 폴더 소유자가 달라 git 이 거부한다 → 이 폴더만 신뢰
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - run: semgrep scan --metrics=off --config p/expressjs --config .semgrep --error --baseline-commit "$BASE"
+        env: { BASE: "${{ github.event.pull_request.base.sha }}" }
+
+  sca:
+    runs-on: ubuntu-24.04
+    steps:
+      # 이 PR 이 추가·변경하는 의존성 중 높음 이상의 취약점이 있으면 실패 (의존성 그래프가 켜져 있어야 한다)
+      - uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
+        with: { fail-on-severity: high }
+
+  # CodeQL 은 저장소 설정의 "기본 설정(default setup)"만 켜도 PR 마다 돈다. 그 경우 이 작업은 지운다(둘을 함께 켤 수 없다).
+  codeql:
+    runs-on: ubuntu-24.04
+    permissions: { contents: read, security-events: write }
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { language: javascript-typescript, build-mode: none }
+          - { language: java-kotlin, build-mode: none }
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with: { persist-credentials: false }
+      - uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with: { languages: "${{ matrix.language }}", build-mode: "${{ matrix.build-mode }}" }
+      - uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with: { category: "/language:${{ matrix.language }}" }

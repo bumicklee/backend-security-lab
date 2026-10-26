@@ -1,0 +1,66 @@
+// 게시판·주문 데이터 (PostgreSQL)
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Post {
+  id        Int      @id @default(autoincrement())
+  title     String   @db.VarChar(100)
+  content   String   @default("")
+  author    String   @db.VarChar(50)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("posts")
+}
+
+model Product {
+  id    Int    @id @default(autoincrement())
+  name  String @db.VarChar(100)
+  price Int
+
+  @@map("products")
+}
+
+model Order {
+  id        Int      @id @default(autoincrement())
+  userId    String   @map("user_id") @db.VarChar(50)
+  productId Int      @map("product_id")
+  qty       Int
+  total     Int
+  coupon    String?  @db.VarChar(8)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("orders")
+}
+
+// SQL 인젝션 UNION 실습에서 노출되는 회원 테이블 (가짜 해시만 들어 있다)
+model User {
+  id           Int    @id @default(autoincrement())
+  email        String
+  passwordHash String @map("password_hash")
+  role         String @db.VarChar(10)
+
+  @@map("users")
+}
+
+// 5-2 회원 연락처는 봉투 암호화(암호문 + IV + 태그 + 감싼 데이터 키) + 블라인드 인덱스로 저장한다
+// 5-4 탈퇴 후 보존 기간이 지나면 파기 배치(purgeExpired)가 지운다 · 5-5 관리자 내보내기 대상
+model Member {
+  id          Int       @id @default(autoincrement())
+  nickname    String    @db.VarChar(30)
+  email       String    @db.VarChar(100)
+  phoneCt     String?   @map("phone_ct")
+  phoneIv     String?   @map("phone_iv")
+  phoneTag    String?   @map("phone_tag")
+  phoneKey    String?   @map("phone_key")
+  phoneIdx    String?   @map("phone_idx") @db.Char(64)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  withdrawnAt DateTime? @map("withdrawn_at")
+
+  @@index([phoneIdx])
+  @@map("members")
+}

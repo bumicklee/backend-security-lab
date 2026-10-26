@@ -1,0 +1,23 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "WriteAndReadOnly",
+      "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:GetObject", "s3:ListBucket", "s3:DeleteObject"],
+      "Resource": ["arn:aws:s3:::board-backup", "arn:aws:s3:::board-backup/*"]
+    },
+    {
+      "Sid": "NeverDeleteVersionsOrUnlock",
+      "Effect": "Deny",
+      "Action": [
+        "s3:DeleteObjectVersion",
+        "s3:PutBucketObjectLockConfiguration",
+        "s3:PutLifecycleConfiguration",
+        "s3:BypassGovernanceRetention",
+        "s3:PutBucketVersioning"
+      ],
+      "Resource": ["arn:aws:s3:::board-backup", "arn:aws:s3:::board-backup/*"]
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+# 5-3 운영 시크릿은 Secrets Manager 에서 (서버 역할 권한으로, 키 파일 없음): SPRING_PROFILES_ACTIVE=aws
+# 이름 규칙: 환경/서비스/용도 → prod/board-api/db 의 JSON 키(spring.datasource.password 등)가 설정으로 들어온다
+# optional: 시크릿을 못 찾으면 기동은 계속하고 환경 변수 값을 쓴다 (필수로 하려면 optional: 을 뺀다)
+spring:
+  config:
+    import:
+      - optional:aws-secretsmanager:prod/board-api/db
+      - optional:aws-secretsmanager:prod/board-api/webhook
+  cloud:
+    aws:
+      region:
+        static: ${AWS_REGION:ap-northeast-2}
+      secretsmanager:
+        enabled: true
+
+# 5-2 봉투 암호화를 실제 KMS 로 (키 ARN·별칭)
+app:
+  crypto:
+    kms-key-id: ${KMS_KEY_ID:alias/board-api-data}

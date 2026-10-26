@@ -1,0 +1,14 @@
+# 6-2 보안 이벤트 jail. 설치: sudo cp jail.d/board-security.local /etc/fail2ban/jail.d/
+# 한 IP 에서 5분 안에 20번째 실패 → 1시간 차단. 공유 사무실·모바일 망(여러 사람이 한 IP)을 생각해 넉넉하게.
+# CrowdSec 을 함께 쓴다면 같은 서비스를 두 도구가 동시에 막지 않게 한다.
+[board-security]
+enabled  = true
+filter   = board-security
+port     = http,https
+logpath  = /var/log/board/security.log
+maxretry = 20
+findtime = 5m
+bantime  = 1h
+# 차단에는 만료(bantime)가 있다. 수동 해제: sudo fail2ban-client set board-security unbanip <IP>
+# 사무실·모니터링 주소는 차단하지 않는다 (예시 대역)
+ignoreip = 127.0.0.1/8 ::1 10.0.0.0/8

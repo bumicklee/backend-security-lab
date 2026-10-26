@@ -1,0 +1,26 @@
+# 6-6 연결 확인용 테스트 파드: board-api 와 같은 라벨(같은 NetworkPolicy 적용), restricted 를 통과하는 설정.
+#   kubectl apply -f k8s/nettest.yaml
+#   kubectl -n board exec nettest -- nc -zv -w 3 postgres 5432                # open
+#   kubectl -n board exec nettest -- nc -zv -w 3 payments-db.payments 5432    # Connection timed out
+#   kubectl -n board exec nettest -- nc -zv -w 3 203.0.113.99 443             # Connection timed out
+#   kubectl -n board delete pod nettest                                        # 확인이 끝나면 지운다
+apiVersion: v1
+kind: Pod
+metadata: { name: nettest, namespace: board, labels: { app: board-api, purpose: nettest } }
+spec:
+  automountServiceAccountToken: false
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 65532
+    runAsGroup: 65532
+    seccompProfile: { type: RuntimeDefault }
+  containers:
+    - name: nettest
+      image: busybox:1.37@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e
+      command: ["sleep", "3600"]
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities: { drop: ["ALL"] }
+      resources: { limits: { cpu: 100m, memory: 32Mi } }
+  restartPolicy: Never

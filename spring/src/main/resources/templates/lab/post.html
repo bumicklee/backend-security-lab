@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="utf-8"><title>게시글 (lab)</title></head>
+<body>
+<!-- ⚠️ 의도적으로 취약: th:utext 는 이스케이프하지 않는다 (4-2) -->
+<h1 th:utext="${post.title}"></h1>
+<div class="content" th:utext="${post.content}"></div>
+</body>
+</html>

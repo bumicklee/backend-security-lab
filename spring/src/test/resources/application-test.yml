@@ -1,0 +1,30 @@
+# 테스트 전용: Docker 없이 H2 메모리 DB로 돈다
+spring:
+  datasource:
+    url: jdbc:h2:mem:board-${random.uuid};MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+
+app:
+  # 테스트 컨텍스트는 여러 테스트 클래스가 공유하므로 넉넉히. RateLimitFilterTest 만 100 으로 덮어쓴다
+  rate-limit:
+    per-minute: 1000000
+  files:
+    dir: ${java.io.tmpdir}/board-test/files
+  upload:
+    dir: ${java.io.tmpdir}/board-test/avatars
+  security-log:
+    file: ${java.io.tmpdir}/board-test/security-${random.uuid}.log
+  lab:
+    upload-dir: ${java.io.tmpdir}/board-test/lab-uploads
+  preview:
+    # localhost 를 일부러 허용 목록에 넣어 "해석된 IP 검사"를 시험한다
+    allowed-hosts: news.example.com,localhost
+  webhook:
+    secret: whsec_TEST_ONLY
+  security:
+    # 테스트는 네트워크를 쓰지 않는다 (LoginProtectionTest 는 @MockitoBean 으로 바꿔 끼운다)
+    compromised-password-check: false

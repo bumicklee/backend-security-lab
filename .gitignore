@@ -1,0 +1,15 @@
+# 운영체제·편집기
+.DS_Store
+.idea/
+.vscode/
+*.iml
+
+# 비밀 값은 올리지 않습니다 (.env.example 만 올림)
+.env
+.env.*
+!.env.example
+
+# 실습 산출물
+*.log
+zap-scan.log
+ir-*/

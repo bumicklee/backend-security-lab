@@ -1,0 +1,17 @@
+# 6-3 우리 팀 규칙: 이번 강의에서 고친 실수를 규칙으로 남긴다. 메시지에는 고치는 방법과 수업 번호.
+# 실행: semgrep scan --config p/expressjs --config .semgrep/board.yml
+# 규칙 테스트(.semgrep 같은 점 폴더는 --test 가 건너뛰므로 다른 이름으로 마운트):
+#   docker run --rm -v "$PWD/.semgrep:/src/rules:ro" -w /src semgrep/semgrep semgrep --test rules/
+rules:
+  - id: board-no-concat-query
+    languages: [javascript]
+    severity: ERROR
+    message: "db.query에 문자열을 이어 붙이지 말고 ? 바인딩을 쓰세요 (2-3)"
+    pattern: db.query($A + $B, ...)
+  - id: board-no-cors-any-origin
+    languages: [java]
+    severity: ERROR
+    message: "모든 출처 허용 금지. 허용 목록을 쓰세요 (4-5)"
+    pattern-either:   # 인자 없는 @CrossOrigin도 모든 출처를 허용한다
+      - pattern: '@CrossOrigin(origins = "*")'
+      - pattern: '@CrossOrigin()'

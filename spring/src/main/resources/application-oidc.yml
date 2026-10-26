@@ -1,0 +1,10 @@
+# 3-3 OAuth 2.0 · OIDC 로그인. IdP 가 있을 때만 켠다: SPRING_PROFILES_ACTIVE=oidc
+# issuer-uri 로 시작할 때 IdP 의 discovery 문서를 읽으므로, IdP 가 없으면 이 프로필로는 기동하지 않는다.
+# 로그인 시작: GET /oauth2/authorization/idp → 콜백: /login/oauth2/code/idp
+spring.security.oauth2.client:
+  registration.idp:
+    client-id: ${IDP_CLIENT_ID:board-web}
+    client-secret: ${IDP_SECRET}
+    scope: openid, profile, email
+  provider.idp:
+    issuer-uri: ${IDP_ISSUER:https://accounts.example.com}

@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="utf-8"><title>게시글</title></head>
+<body>
+<!-- th:text는 자동 이스케이프 (4-2) -->
+<h1 th:text="${post.title}"></h1>
+<div class="content" th:text="${post.content}"></div>
+<!-- 인라인 스크립트는 두지 않는다 (CSP script-src 'self'). 스크립트는 .js 파일로 -->
+</body>
+</html>

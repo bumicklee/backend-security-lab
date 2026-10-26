@@ -1,0 +1,12 @@
+# 5-1 내부 API 를 사내 CA 로만 검증해 호출한다: SPRING_PROFILES_ACTIVE=internal-api
+# 인증서 파일은 이미지에 굽지 말고 마운트한다 (예: -v ./certs/internal-ca.pem:/etc/board/internal-ca.pem:ro)
+spring:
+  ssl:
+    bundle:
+      pem:
+        internal:
+          truststore:
+            certificate: ${INTERNAL_CA_FILE:file:/etc/board/internal-ca.pem}
+app:
+  internal-api:
+    base-url: ${INTERNAL_API_URL:https://pay.internal.example}

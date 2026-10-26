@@ -1,0 +1,35 @@
+# 6-6 NetworkPolicy: ① 기본 차단 ② board-api 에 필요한 길만 연다.
+# NetworkPolicy 는 이를 지원하는 CNI(Calico·Cilium 등)에서만 동작한다. 적용 후 nettest.yaml 로 직접 확인한다.
+# 인그레스 컨트롤러 네임스페이스 이름(ingress)은 예시다. 실제 이름과 같게 바꾼다.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy                                   # ① 기본 차단: 들어오고 나가는 것 모두
+metadata: { name: default-deny, namespace: board }
+spec: { podSelector: {}, policyTypes: [Ingress, Egress] }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy                                   # ② board-api에 필요한 길만 연다
+metadata: { name: board-api, namespace: board }
+spec:
+  podSelector: { matchLabels: { app: board-api } }
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: ingress } } }]
+      ports: [{ port: 3000 }]
+  egress:
+    - { to: [{ podSelector: { matchLabels: { app: postgres } } }], ports: [{ port: 5432 }] }
+    # 이 예제 앱(Express)은 MongoDB·Redis 도 쓴다 (수업 화면에는 없음)
+    - { to: [{ podSelector: { matchLabels: { app: mongo } } }], ports: [{ port: 27017 }] }
+    - { to: [{ podSelector: { matchLabels: { app: redis } } }], ports: [{ port: 6379 }] }
+    # DNS: 큰 응답은 TCP 로 넘어가므로 UDP·TCP 53 을 모두 연다
+    - { ports: [{ port: 53, protocol: UDP }, { port: 53, protocol: TCP }] }      # DNS
+---
+# ③ 기본 차단은 DB 파드의 "들어오기"도 막는다 → board-api 에서 오는 연결만 연다 (수업 화면에는 없음)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: data-stores, namespace: board }
+spec:
+  podSelector: { matchExpressions: [{ key: app, operator: In, values: [postgres, mongo, redis] }] }
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{ podSelector: { matchLabels: { app: board-api } } }]
+      ports: [{ port: 5432 }, { port: 27017 }, { port: 6379 }]

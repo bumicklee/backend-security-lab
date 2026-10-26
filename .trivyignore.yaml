@@ -1,0 +1,12 @@
+# 6-1 오탐과 수용한 위험은 파일로 남긴다. 항목마다 근거(statement)·담당자와 만료일(expired_at).
+# 만료일이 지나면 같은 결과가 다시 나타나 잊힌 예외가 영원히 남지 않는다. 이 파일은 코드 리뷰를 거쳐 관리한다.
+# trivy 기본 예외 파일은 .trivyignore → 스캔할 때 --ignorefile .trivyignore.yaml 로 지정한다.
+# CVE 번호는 수업용 가짜 값이다.
+vulnerabilities:
+  - id: CVE-2026-XXXX4                  # zlib1g
+    statement: "취약 함수 미사용. 담당 alice, 보안팀 검토 2026-10-20"
+    expired_at: 2026-11-20              # 만료되면 다시 결과에 나타난다
+  - id: CVE-2026-XXXX3                  # jackson-core
+    paths: ["app/lib/jackson-core-2.21.1.jar"]
+    statement: "2.21.3 배포 대기, 티켓 SEC-412"
+    expired_at: 2026-11-03

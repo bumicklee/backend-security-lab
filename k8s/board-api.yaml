@@ -1,0 +1,41 @@
+# 6-6 restricted 를 통과하는 게시판 API(Express 이미지, node/Dockerfile). 6-5 의 실행 옵션과 같은 내용.
+# 이미지는 6-4 에서 서명을 검증한 다이제스트로 지정한다(아래 다이제스트는 예시 값).
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: board-api, namespace: board, labels: { app: board-api } }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: board-api } }
+  template:
+    metadata: { labels: { app: board-api } }
+    spec:
+      serviceAccountName: board-api
+      automountServiceAccountToken: false            # API를 쓰지 않는 앱은 토큰도 없이
+      securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: board-api
+          image: registry.example.com/board-api@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          ports: [{ name: http, containerPort: 3000 }]
+          envFrom: [{ secretRef: { name: board-api-env } }]   # DATABASE_URL · MONGO_URL 등 (시크릿 관리 5-3)
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { memory: 512Mi }
+          readinessProbe: { httpGet: { path: /health, port: http }, periodSeconds: 10 }
+          livenessProbe: { httpGet: { path: /health, port: http }, periodSeconds: 20, failureThreshold: 3 }
+          volumeMounts:                               # 쓰기가 필요한 곳만 빈 볼륨으로
+            - { name: tmp, mountPath: /tmp }
+            - { name: data, mountPath: /app/data }    # 업로드·로그 (운영은 PVC·객체 저장소·중앙 로그로)
+      volumes:
+        - { name: tmp, emptyDir: { sizeLimit: 64Mi } }
+        - { name: data, emptyDir: {} }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: board-api, namespace: board }
+spec:
+  selector: { app: board-api }
+  ports: [{ name: http, port: 80, targetPort: http }]

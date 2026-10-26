@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="utf-8"><title>게시글</title></head>
+<body>
+<h1 th:text="${post.title}"></h1>
+<!-- bodyHtml 은 OWASP Java HTML Sanitizer 로 허용 목록만 남긴 HTML 이라 th:utext 로 출력 -->
+<div class="content" th:utext="${bodyHtml}"></div>
+</body>
+</html>

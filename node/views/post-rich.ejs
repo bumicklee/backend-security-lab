@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><title>게시글</title></head>
+<body>
+<h1><%=post.title%></h1>
+<%# bodyHtml 은 DOMPurify 로 허용 목록만 남긴 HTML. 그래서 이스케이프 없는 출력 태그를 쓴다 %>
+<div class="content"><%- bodyHtml %></div>
+</body>
+</html>

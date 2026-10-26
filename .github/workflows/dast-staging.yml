@@ -1,0 +1,28 @@
+# 6-3 스테이징 DAST: 매일 밤 ZAP API 스캔. 운영이 아니라 스테이징만(스캐너는 실제로 공격 요청을 보낸다).
+# OpenAPI 명세로 엔드포인트를 빠짐없이 요청하고, 스캔 전용 테스트 계정(꼭 필요한 권한만)의 토큰을 헤더로 넣는다.
+# 느린 검사라 PR 을 막지 않는다. 결과(zap.html · zap-scan.log)는 아티팩트로 남기고, 재현해서 맞으면 보안 이슈로 만든다.
+# ZAP 컨테이너는 uid 1000(zap)으로 돌아 러너 작업 폴더(uid 1001)에 보고서를 못 쓰므로 -u root 를 쓴다.
+name: dast-staging
+
+on:
+  schedule: [{ cron: "0 18 * * *" }]                  # 매일 03:00 KST
+  workflow_dispatch:
+
+permissions: { contents: read }
+
+jobs:
+  dast:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0 — zap-rules.conf
+        with: { persist-credentials: false }
+      # -I: 경고(WARN)만 있으면 실패로 끝내지 않는다(결과는 이슈로). 규칙 파일에서 FAIL 로 정한 것만 실패.
+      - run: |
+          docker run --rm -u root -v "$PWD:/zap/wrk:rw" -e ZAP_AUTH_HEADER_VALUE \
+            ghcr.io/zaproxy/zaproxy:stable@sha256:5ccfff9a411743ab2615136a2edd7416bec9ce41572fa94e935df38c14adb2b6 \
+            zap-api-scan.py -f openapi -c zap-rules.conf -I \
+            -t https://staging.example.com/v3/api-docs -r zap.html | tee zap-scan.log
+        env: { ZAP_AUTH_HEADER_VALUE: "Bearer ${{ secrets.STAGING_SCAN_TOKEN }}" }
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with: { name: zap-report, path: "zap.html\nzap-scan.log", retention-days: 30 }

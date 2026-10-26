@@ -1,0 +1,12 @@
+# 6-6 Pod Security Admission: 네임스페이스에 라벨 하나로 켠다.
+# 먼저 미리보기로 기존 파드의 위반을 확인한 뒤 적용한다:
+#   kubectl label --dry-run=server --overwrite ns board pod-security.kubernetes.io/enforce=restricted
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: board
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/warn: restricted     # kubectl apply 때 경고로도 보여 준다
+    pod-security.kubernetes.io/audit: restricted    # 감사 로그에도 남긴다

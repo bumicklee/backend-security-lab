@@ -1,0 +1,20 @@
+# 6-8 찾은 패턴은 규칙으로 남긴다 (Sigma). 입력은 1-6 의 auditd 파일 변경 기록(PATH 레코드).
+# auditd 규칙 예: -w /etc/systemd/system/ -p wa -k systemd_persist
+# 변환 예: sigma convert -t <관제 도구 백엔드> -p <파이프라인> detections/linux/new-systemd-service.yml
+title: systemd 서비스 파일이 새로 생김
+id: b3e68093-cabf-4126-b3a6-9e06724aa97d
+status: experimental
+description: systemd 서비스 설정 폴더(시스템·사용자)에 새 .service 파일이 생기면 알린다 (지속성 T1543.002)
+author: backend-security-lab
+date: 2026-10-26
+logsource: { product: linux, service: auditd }
+detection:
+  selection:
+    type: PATH
+    nametype: CREATE
+    name|contains: ['/etc/systemd/system/', '/.config/systemd/user/']
+    name|endswith: '.service'
+  condition: selection
+falsepositives: ['패키지 설치와 배포 (배포 기록과 대조)']
+level: medium
+tags: [attack.persistence, attack.t1543.002]

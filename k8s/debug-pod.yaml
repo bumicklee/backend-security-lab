@@ -1,0 +1,12 @@
+# 6-6 실습용 "나쁜 예": restricted 네임스페이스에서는 거부되어야 한다 (실제로 배포하지 말 것).
+#   kubectl apply -f k8s/debug-pod.yaml
+#   → Error from server (Forbidden): ... violates PodSecurity "restricted:latest": privileged ...
+apiVersion: v1
+kind: Pod
+metadata: { name: debug, namespace: board }
+spec:
+  containers:
+    - name: debug
+      image: busybox:1.37@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e
+      command: ["sleep", "3600"]
+      securityContext: { privileged: true }

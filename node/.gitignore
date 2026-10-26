@@ -1,0 +1,9 @@
+node_modules/
+coverage/
+.env
+# 업로드·실습 산출물
+data/avatars/*
+!data/avatars/.gitkeep
+data/lab-public/
+data/audit/
+data/log/

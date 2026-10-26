@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><title>게시글</title></head>
+<body>
+<%# 등호 태그는 HTML 이스케이프. 저장된 태그는 글자로 출력된다 (4-2) %>
+<h1><%=post.title%></h1>
+<div class="content"><%=post.content%></div>
+<%# 인라인 스크립트가 꼭 필요하면 요청마다 바뀌는 nonce 를 붙인다 %>
+<script nonce="<%= cspNonce %>">document.documentElement.dataset.view = "post";</script>
+</body>
+</html>

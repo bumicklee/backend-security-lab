@@ -1,0 +1,97 @@
+# 실습용 구성. 모든 포트는 127.0.0.1에만 열어 외부에서 접속할 수 없게 한다.
+# 비밀번호는 예시 값이다. 실습 VM 밖에서 쓰지 말 것.
+name: lab
+
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: lab
+      POSTGRES_PASSWORD: lab-only-password
+    volumes:
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lab"]
+      interval: 5s
+      retries: 20
+
+  mongo:
+    image: mongo:8
+    volumes:
+      - mongo-data:/data/db
+    ports:
+      - "127.0.0.1:27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      retries: 20
+
+  # 4-4 Express 요청 제한 카운터를 서버 간에 공유하는 저장소
+  redis:
+    image: redis:8
+    # 호스트에 포트를 열지 않는다 (express 컨테이너만 접속)
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 20
+
+  # 6-5 실행 권한 줄이기: 일반 사용자 · 읽기 전용 루트 · 쓸 곳은 /tmp(메모리)와 data 볼륨만 ·
+  # 커널 권한 모두 제거 · 권한 상승 금지 · 프로세스 수·메모리 제한. 특권 모드·도커 소켓·호스트 네트워크는 쓰지 않는다.
+  spring:
+    build: ./spring
+    user: "10001:10001"                      # 이미지의 app 사용자 (Dockerfile useradd --uid 10001)
+    read_only: true                          # 루트 파일 시스템 읽기 전용
+    tmpfs: ["/tmp:size=64m,noexec"]          # Tomcat 작업 폴더 등 임시 파일만
+    volumes:
+      - spring-data:/app/data                # 업로드·보안 이벤트 로그(data/log/security.log)
+    cap_drop: [ALL]                          # 리눅스 커널 권한 모두 제거
+    security_opt: ["no-new-privileges:true"] # SUID 로 권한 상승 금지
+    pids_limit: 200
+    mem_limit: 768m                          # JVM 은 컨테이너 메모리의 25% 를 힙으로 쓴다
+    environment:
+      DB_HOST: db
+      DB_NAME: board_spring
+      DB_USER: lab
+      DB_PASSWORD: lab-only-password
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  express:
+    build: ./node                            # distroless nodejs24 · nonroot(65532) (node/Dockerfile)
+    user: "65532:65532"
+    read_only: true
+    tmpfs: ["/tmp:size=64m,noexec"]
+    volumes:
+      - express-data:/app/data               # 업로드·접속기록·보안 이벤트 로그(data/log/security.log)
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 200
+    mem_limit: 512m
+    environment:
+      DATABASE_URL: postgresql://lab:lab-only-password@db:5432/express_board
+      MONGO_URL: mongodb://mongo:27017
+      MONGO_DB: express_lab
+      RATE_LIMIT_REDIS_URL: redis://redis:6379
+      # 앞에 로드밸런서가 없으므로 X-Forwarded-For 를 믿지 않는다. LB 한 단계 뒤라면 "1"
+      TRUST_PROXY: "false"
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  db-data:
+  mongo-data:
+  spring-data:
+  express-data:

@@ -1,0 +1,118 @@
+# 기본 프로필: 안전한 /api/** 만 켜진다. 취약한 /lab/** 은 lab-vulnerable 프로필에서만.
+server:
+  port: ${SERVER_PORT:8080}
+  # 4-4 프록시 헤더는 신뢰한 프록시가 붙인 것만 → getRemoteAddr() 가 실제 클라이언트 IP
+  # internal-proxies 는 실제로 거치는 로드밸런서 주소에 맞춘다 (스테이징에서 꼭 확인)
+  forward-headers-strategy: native
+  tomcat:
+    remoteip:
+      internal-proxies: "10\\.0\\.0\\.\\d+"
+  # 3-2: 세션 쿠키는 HttpOnly · Secure · SameSite=Lax. 로그인 시 세션 ID 교체는 기본 동작
+  servlet:
+    session:
+      timeout: 30m
+      cookie:
+        http-only: true
+        secure: ${SESSION_COOKIE_SECURE:true}
+        same-site: lax
+  error:
+    include-message: never
+    include-stacktrace: never
+
+spring:
+  application:
+    name: board
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:board}
+    username: ${DB_USER:board}
+    password: ${DB_PASSWORD:board-EXAMPLE-only}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+  servlet:
+    multipart:
+      # 업로드 크기·개수 제한 (2-5)
+      max-file-size: 2MB
+      max-request-size: 2MB
+  jackson:
+    # 모르는 필드·타입 강제 변환을 거절한다 (2-2, 2-7)
+    deserialization:
+      fail-on-unknown-properties: true
+    mapper:
+      allow-coercion-of-scalars: false
+  mvc:
+    problemdetails:
+      enabled: true
+  # 5-3 Secrets Manager 연동(Spring Cloud AWS)은 aws 프로필에서만 켠다.
+  # 기본 실행·테스트·compose 는 AWS 리전·자격 증명 없이 뜬다
+  cloud:
+    aws:
+      secretsmanager:
+        enabled: false
+
+# GET /health → {"status":"UP"} (0-5 실습 화면과 같은 주소)
+management:
+  endpoints:
+    web:
+      base-path: /
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      # Boot 4 는 probes(liveness·readiness)가 기본으로 켜져 응답에 "groups" 가 붙는다.
+      # 0-5 화면과 같은 {"status":"UP"} 를 유지하려고 끈다.
+      probes:
+        enabled: false
+
+app:
+  # 4-4 요청 제한 (RateLimitFilter): 로그인 사용자·IP 별 분당 횟수
+  rate-limit:
+    per-minute: ${RATE_LIMIT_PER_MIN:100}
+  # 4-5 CORS 허용 출처 (쉼표 구분). 쿠키를 쓰므로 * 금지
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:https://app.example.com}
+  files:
+    dir: ${APP_FILES_DIR:./data/files}
+  upload:
+    dir: ${APP_UPLOAD_DIR:./data/avatars}
+  preview:
+    # SSRF 방어: 미리보기를 허용할 호스트 (쉼표 구분)
+    allowed-hosts: ${PREVIEW_ALLOWED_HOSTS:example.com,www.example.com,news.example.com}
+  webhook:
+    # 가짜 값. 실제 시크릿은 환경 변수로만 주입
+    secret: ${WEBHOOK_SECRET:whsec_EXAMPLE_ONLY_change_me}
+    tolerance-seconds: 300
+  seed:
+    admin-password: ${SEED_ADMIN_PASSWORD:admin-EXAMPLE-pw}
+    alice-password: ${SEED_ALICE_PASSWORD:alice-EXAMPLE-pw}
+    bob-password: ${SEED_BOB_PASSWORD:bob-EXAMPLE-pw}
+  security:
+    # 3-5: 로그인 때 HaveIBeenPwned(k-익명성 API)로 유출 비밀번호를 확인한다. 오프라인 실습이면 false
+    compromised-password-check: ${COMPROMISED_PASSWORD_CHECK:true}
+  webauthn:
+    # 3-6: 패스키 RP ID·허용 오리진. 다른 오리진(피싱 사이트)에서 만든 서명은 거절된다
+    rp-id: ${WEBAUTHN_RP_ID:localhost}
+    allowed-origins: ${WEBAUTHN_ALLOWED_ORIGINS:http://localhost:8080}
+  crypto:
+    # 5-2 KMS 키 ARN·별칭. 비우면 프로세스 안의 가짜 KMS(LocalKmsClient, 실습 전용)
+    kms-key-id: ${KMS_KEY_ID:}
+    region: ${AWS_REGION:ap-northeast-2}
+    # 가짜 KMS 의 마스터 키를 만드는 실습용 값 / 블라인드 인덱스 키(암호화 키와 따로). 운영은 시크릿 매니저에서
+    local-master-secret: ${LOCAL_KMS_MASTER_SECRET:local-kms-master-EXAMPLE-only}
+    phone-index-key: ${PHONE_INDEX_KEY:phone-index-key-EXAMPLE-only-change-me}
+  privacy:
+    # 5-4 파기 배치 보존 기간: 탈퇴 회원 / 주문 구매자(다른 법이 정한 기간)
+    member-retention: ${MEMBER_RETENTION:P30D}
+    order-retention: ${ORDER_RETENTION:P1825D}
+  security-log:
+    # 6-2 보안 이벤트 로그(한 줄에 JSON, "ts" 필드). fail2ban(ops/fail2ban)이 읽는다. 비우면 로그로만
+    file: ${SECURITY_LOG_FILE:./data/log/security.log}
+  export:
+    # 5-5 관리자 내보내기: 오늘 누적 건수가 이 값을 넘으면 알림
+    alert-threshold: ${EXPORT_ALERT_THRESHOLD:10000}
+
+logging:
+  level:
+    board: INFO

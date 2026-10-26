@@ -1,0 +1,20 @@
+# 6-4 새 버전은 며칠 기다린다: 침해된 새 버전은 대개 며칠 안에 발견되고 내려진다.
+# cooldown 은 일반 버전 업데이트에만 적용된다. 취약점을 고치는 보안 업데이트는 기다리지 않고 바로 올라온다.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /node
+    schedule: { interval: weekly }
+    cooldown: { default-days: 7 }        # 공개 뒤 7일 지난 버전만 제안
+  - package-ecosystem: gradle
+    directory: /spring
+    schedule: { interval: weekly }
+    cooldown: { default-days: 7 }
+  - package-ecosystem: github-actions    # 고정한 SHA도 새 버전으로 올려 준다 (SHA 와 버전 주석을 함께)
+    directory: /
+    schedule: { interval: weekly }
+    cooldown: { default-days: 7 }
+  - package-ecosystem: docker            # Dockerfile 의 다이제스트 고정도 올려 준다
+    directories: [/node, /spring]
+    schedule: { interval: weekly }
+    cooldown: { default-days: 7 }

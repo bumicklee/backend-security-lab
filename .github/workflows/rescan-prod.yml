@@ -1,0 +1,47 @@
+# 6-1 운영 이미지 매일 재스캔: 코드 변경과 상관없이, 새 취약점 데이터베이스로 운영 태그를 다시 스캔한다.
+# 결과는 SARIF 로 저장소 보안 탭(Code scanning)에 올린다. 이미 아는 결과는 묶이고 새로 생긴 것만 알림으로 온다.
+# 액션은 태그가 아니라 커밋 SHA 로 고정한다(6-4). trivy 도 버전과 체크섬을 고정해 설치한다(2026-03 Trivy 침해 이후).
+name: rescan-prod
+
+on:
+  schedule: [{ cron: "30 23 * * *" }]          # 매일 08:30 KST
+  workflow_dispatch:
+
+permissions: { contents: read, security-events: write }
+
+env:
+  TRIVY_VERSION: "0.76.1"
+  # https://github.com/aquasecurity/trivy/releases/download/v0.76.1/trivy_0.76.1_checksums.txt
+  TRIVY_SHA256: "c7cbe3137fb8a48a17574bede3dd6beb16742d1e9772929940fc90082c39d9c0"
+  REGISTRY: registry.example.com                 # 예시 레지스트리
+
+jobs:
+  rescan:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix: { image: [board-api, upload-worker, webhook] }   # 대상 = 자산 목록의 운영 이미지
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0 — 예외 파일을 읽으려고
+        with: { persist-credentials: false }
+      - name: trivy 설치 (버전·체크섬 고정)
+        run: |
+          f="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          curl -fsSLo "$f" "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/$f"
+          echo "${TRIVY_SHA256}  $f" | sha256sum -c -
+          tar -xzf "$f" trivy && sudo install -m 0755 trivy /usr/local/bin/trivy && trivy --version
+      - name: 레지스트리 로그인 (예시 — 실제 레지스트리·자격 증명으로 바꾼다)
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ vars.REGISTRY_USER }}
+          password: ${{ secrets.REGISTRY_READ_TOKEN }}   # 읽기 전용 토큰
+      - name: 취약점 데이터베이스 갱신
+        run: trivy image --download-db-only
+      - name: 운영 태그 재스캔
+        run: >-
+          trivy image --severity HIGH,CRITICAL --ignore-unfixed --format sarif -o out.sarif
+          --ignorefile .trivyignore.yaml "${REGISTRY}/${{ matrix.image }}:prod"
+      - uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        if: always() && hashFiles('out.sarif') != ''
+        with: { sarif_file: out.sarif, category: "prod-${{ matrix.image }}" }
