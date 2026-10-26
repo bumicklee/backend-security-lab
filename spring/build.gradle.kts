@@ -32,7 +32,7 @@ dependencies {
     // 업로드 파일의 실제 형식을 매직 바이트로 판별 (2-5)
     implementation("org.apache.tika:tika-core:4.1.0")
     // 3-1 Argon2PasswordEncoder 가 쓰는 Argon2 구현 (Bouncy Castle)
-    implementation("org.bouncycastle:bcprov-jdk18on:1.85")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.86")
     // 3-3 OAuth 2.0 · OIDC 로그인 (Boot 4 스타터 이름)
     implementation("org.springframework.boot:spring-boot-starter-security-oauth2-client")
     // 3-6 패스키(WebAuthn) — Spring Security 의 webAuthn() 이 webauthn4j 로 서명을 검증한다
