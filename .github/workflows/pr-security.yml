@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       # 이 PR 이 추가·변경하는 의존성 중 높음 이상의 취약점이 있으면 실패 (의존성 그래프가 켜져 있어야 한다)
-      - uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with: { fail-on-severity: high }
 
   # CodeQL 은 저장소 설정의 "기본 설정(default setup)"만 켜도 PR 마다 돈다. 그 경우 이 작업은 지운다(둘을 함께 켤 수 없다).
