@@ -1,0 +1,5 @@
+# 6-8 s10: Sigma 규칙(new-systemd-service.yml)의 입력. 1-6 의 50-server.rules 에 더해 쓴다.
+#   sudo cp 60-persistence.rules /etc/audit/rules.d/ && sudo augenrules --load
+#   sudo auditctl -l | grep systemd_persist      # 확인
+# 검색: sudo ausearch -k systemd_persist -i
+-w /etc/systemd/system -p wa -k systemd_persist

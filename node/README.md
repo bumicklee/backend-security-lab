@@ -185,7 +185,8 @@ curl -s localhost:3000/lab/admin/users
 curl -s -X POST localhost:3000/lab/reset-prototype
 
 # 3-4 IDOR: 보안 구현은 남의 주문 403, 실습 모드는 1000~1010 이 모두 200
-curl -s -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer $TOKEN" localhost:3000/orders/1002
+TOKEN=$(curl -s localhost:3000/api/login --json '{"username":"alice","password":"alice-lab-pass"}' | jq -r .token)
+curl -si localhost:3000/api/orders/1002 -H "Authorization: Bearer $TOKEN" | head -1     # HTTP/1.1 403 Forbidden (화면 s4 마지막 줄)
 LAB=$(curl -s localhost:3000/lab/login -H "Content-Type: application/json" \
   -d '{"username":"alice","password":"alice-lab-pass"}' | jq -r .token)
 for id in $(seq 1000 1010); do curl -s -o /dev/null -w "%{http_code} " -H "Authorization: Bearer $LAB" localhost:3000/lab/orders/$id; done; echo
@@ -275,31 +276,33 @@ node/
 
 ## 수업 화면과 다른 점 (섹션 3)
 
-- 3-1: 화면은 `startsWith("scrypt$")` 로 예전 형식을 고르지만, 저장소는 bcrypt(`$2b$…`)도 함께 이전하려고 "`$argon2` 로 시작하지 않으면 예전 형식"으로 판단합니다. 해시 출력은 `m=19456,p=1,t=2` 순서입니다.
+- 3-1: 해시 출력은 `m=19456,p=1,t=2` 순서입니다. s8(로그인 한 번으로 바뀌는 해시)은 alice 가 **아직 로그인한 적 없는** DB 에서 그대로 재현됩니다. 앞 수업에서 이미 alice 로 로그인했다면 첫 조회부터 `$argon2id$…` 가 나옵니다. 이때는 `docker compose down -v` 후 다시 띄우거나(DB 초기화), DB 없이 `npm run dev:lab` 으로 띄우거나(재시작할 때마다 시드 상태), 아직 로그인하지 않은 계정(예: bob, `bob-lab-pass`)으로 바꿔 확인하세요.
+- 3-1·3-2: 화면 터미널(3-1 s8, 3-2 s9)은 `https://api.example.com` 을 씁니다. 로컬에서 따라 할 때는 `http://localhost:3000` 으로 바꾸면 같은 결과가 나옵니다.
 - 3-2: 리프레시 토큰 쿠키 `path` 는 `/token`(짧은 경로) 또는 `/api/token`(요청한 경로에 맞춤)입니다. 세션 쿠키 `secure` 는 기본 `auto` 라 HTTP 로 실습해도 동작합니다(운영은 `COOKIE_SECURE=true`).
 - 3-3: IdP 설정은 첫 요청 때 discovery 로 읽습니다(화면은 모듈 최상위 `await`). 처음 보는 `iss`+`sub` 는 이메일로 기존 계정에 붙이지 않고 새 계정(`oidc:<sub>`)을 만듭니다.
-- 3-5: 화면의 `verifyPassword(...)` 자리에서 저장소는 `verifyAndUpgrade(users, user, password)`(3-1)를 씁니다.
-- 3-6: 화면은 오리진·RP ID 를 `https://board.example.com`·`board.example.com` 으로 적었지만, 저장소는 `WEBAUTHN_ORIGIN`·`WEBAUTHN_RP_ID` 값을 씁니다(기본 localhost). 세션 저장소는 메모리(`MemoryStore`, 시작 시 경고 출력)입니다.
+- 3-4: s4 의 재현은 실습 모드 서버에서 합니다. `/lab/login`·`/lab/orders/:id` 는 수정 전 코드, `/api/login`·`/api/orders/:id` 는 고친 코드(남의 주문 403)입니다. Compose 의 `express` 컨테이너는 실습 모드가 아니므로 `docker compose stop express` 후 `npm run dev:lab`(DB 없이) 또는 `LAB_MODE=vulnerable HOST=127.0.0.1 npm start`(DB 와 함께)로 3000 번 포트에 띄웁니다. 화면은 응답을 `jq -c '{id, userId}'` 로 줄였습니다.
+- 3-6: 오리진·RP ID 는 화면의 `config.webauthnOrigin`·`config.webauthnRpId` 처럼 `WEBAUTHN_ORIGIN`·`WEBAUTHN_RP_ID` 값을 씁니다(기본 localhost). 세션 저장소는 메모리(`MemoryStore`, 시작 시 경고 출력)입니다.
 
 ## 수업 화면과 다른 점 (섹션 4)
 
 - 4-1: 실습 모드 `PATCH /lab/users/me` 는 `/api/login` 이 발급한 토큰(RS256)을 쓰고 실제 `users` 컬렉션을 고칩니다(다시 로그인하면 ADMIN). 로그인할 때 해시가 Argon2id 로 이전되므로(3-1) 응답의 `passwordHash` 는 `scrypt$…` 가 아니라 `$argon2id$…` 일 수 있습니다. 시드 사용자에 `nickname`·`bio`·`resetToken`(가짜 `rt_EXAMPLE_…`)이 들어 있습니다(새 DB 에만).
-- 4-1: 모바일 가격 변조 시나리오 테스트는 `tests/price-tamper.test.js` 에 따로 두었습니다. 주문 응답의 `id` 는 새 DB 에서 1011 부터입니다(화면은 101).
-- 4-2: 77번 글은 시드로 미리 들어 있습니다(화면처럼 `POST /posts` 로 새로 쓰면 6번부터 번호가 붙습니다). 화면의 DOMPurify 예시는 보기 화면과 따로 `GET /posts/:id/rich` (`views/post-rich.ejs`)에 있습니다. `views/post.ejs` 에는 nonce 를 붙인 인라인 스크립트 한 줄이 들어 있습니다. 실습 모드 보기 화면은 "수정 전 서버"처럼 CSP 헤더를 지웁니다.
+- 4-1: 모바일 가격 변조 시나리오 테스트는 `tests/price-tamper.test.js` 에 따로 두었습니다. 주문 응답의 `id` 는 화면처럼 새 DB 에서 1011 부터입니다.
+- 4-2: 화면의 77번 글은 시드로 미리 들어 있습니다(`POST /posts` 로 새로 쓰면 6번부터 번호가 붙습니다). 화면의 DOMPurify 예시는 화면처럼 보기 화면과 따로 `GET /posts/:id/rich` (`views/post-rich.ejs`)에 있습니다. `views/post.ejs` 에는 nonce 를 붙인 인라인 스크립트 한 줄이 들어 있습니다. 실습 모드 보기 화면은 "수정 전 서버"처럼 CSP 헤더를 지웁니다.
 - 4-2: CSP 헤더는 helmet 기본 지시어에 `script-src 'self' 'nonce-…'` 가 더해진 모양입니다.
 - 4-3: 깨진 JSON 테스트("형식이 잘못된 JSON 본문은 서명이 맞아도 400")가 더해져 `webhook.test.js` 는 8개입니다.
 - 4-4: `trust proxy` 는 화면의 `1` 을 그대로 쓰지 않고 `TRUST_PROXY` 로 받으며 기본은 `false` 입니다. 앞에 프록시가 없는 로컬·compose 에서 `1` 이면 클라이언트가 보낸 `X-Forwarded-For` 를 믿게 되기 때문입니다. 로드밸런서 한 단계 뒤에 배포할 때 `TRUST_PROXY=1` 로 둡니다(테스트 `rate-limit.test.js` 가 이 상황을 재현). **프록시 신뢰 설정은 스테이징에서 실제 경로로 확인하세요.**
-- 4-4: Redis 저장소는 화면의 `REDIS_URL` 대신 `RATE_LIMIT_REDIS_URL` 이 있을 때만 켭니다(셸에 흔히 잡혀 있는 `REDIS_URL` 로 외부 Redis 에 붙는 일을 막기 위해). `node-redis` 6 클라이언트를 씁니다.
-- 4-5: 출처 확인 미들웨어는 화면 코드에 더해 `OPTIONS` 와 `Sec-Fetch-Site: none` 을 통과시키고, `Origin`·`Sec-Fetch-Site` 가 **둘 다 없는** 요청(curl·모바일 앱·서버 간 호출 — 브라우저가 쿠키를 자동으로 붙이는 요청이 아님)도 통과시킵니다. 데모 `POST /account/email` 은 세션 쿠키(`sid`, 3-3·3-6 로그인)로 인증합니다.
+- 4-4: 화면의 `RedisStore` 는 `RATE_LIMIT_REDIS_URL` 이 있을 때만 켭니다(셸에 흔히 잡혀 있는 `REDIS_URL` 로 외부 Redis 에 붙는 일을 막기 위해 이름을 따로 둠). `node-redis` 6 클라이언트를 씁니다.
+- 4-4: 화면의 주문 id `1012` 는 4-1 실습(s9)에서 주문 하나(1011)를 만든 뒤 같은 DB 를 쓴다고 가정한 번호입니다. 새 DB 면 1011, 그 사이에 주문을 더 만들었다면 더 큰 번호가 나옵니다.
+- 4-5: 출처 확인 미들웨어(`src/lib/origin-check.js`)는 화면과 같은 규칙입니다. `GET`·`HEAD`·`OPTIONS`, `Sec-Fetch-Site: same-origin`·`none`, 허용 목록의 `Origin`, 그리고 `Origin`·`Sec-Fetch-Site` 가 **둘 다 없는** 요청(curl·모바일 앱·서버 간 호출)을 통과시킵니다. 저장소는 허용 목록을 `CORS_ORIGINS` 에서 읽고, 미들웨어를 `originCheck(allowed)` 함수로 감쌌습니다. 데모 `POST /account/email` 은 세션 쿠키(`sid`, 3-3·3-6 로그인)로 인증합니다.
 
 ## 수업 화면과 다른 점 (섹션 5)
 
-- 5-1: 화면의 `new https.Agent({ ca: fs.readFileSync(INTERNAL_CA) })` 는 `createInternalApi({ baseUrl, caFile })` 안에 있습니다(`keepAlive`, https 가 아니면 만들지 않음). 화면 s2 의 `src/clients/pay.js` 는 저장소에 없습니다. Node 의 `fetch` 는 `https.Agent` 를 쓰지 않으므로 이 클라이언트는 `https.get` 을 씁니다. 테스트는 실제 TLS 연결 없이 에이전트 옵션과 인증서 체인(사내 CA·중간자)을 확인합니다.
+- 5-1: 화면의 `new https.Agent({ ca: fs.readFileSync(INTERNAL_CA) })` 는 `createInternalApi({ baseUrl, caFile })` 안에 있습니다(`keepAlive`, https 가 아니면 만들지 않음). Node 의 `fetch` 는 `https.Agent` 를 쓰지 않으므로 이 클라이언트는 `https.get` 을 씁니다. 테스트는 실제 TLS 연결 없이 에이전트 옵션과 인증서 체인(사내 CA·중간자)을 확인합니다.
 - 5-2: 화면의 `kms` 는 AWS SDK `KMSClient` 이고, `KMS_KEY_ID` 가 없으면 같은 `send(command)` 모양의 가짜 KMS 를 씁니다(마스터 키가 프로세스에 있으므로 실습 전용). 화면의 `save({ ct, iv, tag, wrappedKey })` 는 `members` 테이블의 `phone_ct`·`phone_iv`·`phone_tag`·`phone_key`(base64) + `phone_idx` 입니다. 평문 데이터 키는 쓰고 나서 0 으로 지웁니다.
 - 5-3: 화면의 `GetSecretValueCommand` 호출은 `secretsManagerSource()` 안에 있고, 회전이 반영되도록 5분만 캐시합니다. `SECRETS_SOURCE=aws` 일 때 `src/server.js` 가 시작하면서 DB 주소·웹훅 시크릿을 읽습니다(테스트·compose 는 환경 변수).
-- 5-4: 마스킹 모양은 화면과 같습니다(Spring 도 같은 모양으로 맞춤). 화면의 주문 로그(`phone`·`card`)는 예제 주문이 연락처·카드번호를 받지 않아 `userId`·`orderId` 만 남깁니다. 화면의 전역 `auditLog` 대신 `createPrivacyAccess(auditLog)` 로 저장소를 주입받고, 관리자 회원 조회는 `admin.get("/members/:id", …)` 대신 `GET /admin/members/:id`(로그인 → 접속기록 → 관리자 확인 순서라 403 시도도 남음)입니다. 접속기록은 JSONL 파일(append only, 테스트는 메모리)에 씁니다. 파기 배치(화면은 Spring)도 `src/jobs/purge-expired.js` 로 같이 넣었고, 탈퇴 회원(30일)과 주문(5년) 보존 기간을 나눴습니다.
-- 5-5: 화면의 `db.member.findMany` 는 `prisma.member.findMany` 입니다. 탈퇴 회원 제외(`where: { withdrawnAt: null }`)와 `fields=` 컬럼 허용 목록(기본 `id,nickname`)이 더해졌고, 페이지 번호는 zod 로 검증합니다. 알림은 `deps.alert("bulk-export", { actorId, total })`(기본: 경고 로그), 기준은 `EXPORT_ALERT_THRESHOLD`, 누적 카운터는 서버 메모리입니다.
-- 5-7: 화면의 `SignCommand` 에 `MessageType: "RAW"` 가, 헤더에 `kid` 가 더해졌습니다. `issued.save(claims.jti, claims.exp)` 는 3-6 "모든 기기 로그아웃" 색인을 위해 `sub` 도 받습니다. `JWT_KMS_KEY_ID` 가 없으면 기존처럼 프로세스 RS256 키로 서명합니다. 발급 기록은 실습용 메모리 저장소이고, `ops/sql/find_unissued_tokens.sql` 의 `access_log`·`token_issued` 는 감사 DB 예시(`ops/sql/audit_schema.sql`)입니다.
+- 5-4: 마스킹 모양은 화면과 같습니다(Spring 도 같은 모양으로 맞춤). 화면의 주문 로그(`phone`·`card`)는 예제 주문이 연락처·카드번호를 받지 않아 `userId`·`orderId` 만 남깁니다. 접속기록 미들웨어 `createPrivacyAccess(auditLog)` 와 관리자 회원 조회 `GET /admin/members/:id` 는 화면과 같습니다(로그인 → 접속기록 → 관리자 확인 순서라 403 시도도 남음). 접속기록은 JSONL 파일(append only, 테스트는 메모리)에 씁니다. 파기 배치(화면은 Spring)도 `src/jobs/purge-expired.js` 로 같이 넣었고, 화면처럼 탈퇴 회원(30일)과 주문(5년) 보존 기간을 나눴습니다.
+- 5-5: 화면의 `prisma.member.findMany`, 탈퇴 회원 제외(`where: { withdrawnAt: null }`), `fields=` 컬럼 허용 목록(기본 `id,nickname`)은 저장소와 같습니다. 화면의 `page(req)`·`actorId` 는 줄여 쓴 것이고, 저장소는 페이지 번호를 zod 로 검증하고 `actorId: req.user.sub` 로 넘깁니다. 알림은 `deps.alert("bulk-export", { actorId, total })`(기본: 경고 로그), 기준은 `EXPORT_ALERT_THRESHOLD`, 누적 카운터는 서버 메모리입니다.
+- 5-7: 화면의 헤더 `kid`, `SignCommand` 의 `MessageType: "RAW"`, `issued.save(jti, exp, sub)`(3-6 "모든 기기 로그아웃" 색인용 `sub`)는 저장소와 같습니다. `JWT_KMS_KEY_ID` 가 없으면 기존처럼 프로세스 RS256 키로 서명합니다. 발급 기록은 실습용 메모리 저장소이고, `ops/sql/find_unissued_tokens.sql` 의 `access_log`·`token_issued` 는 감사 DB 예시(`ops/sql/audit_schema.sql`)입니다.
 
 ## 수업 화면과 다른 점 (섹션 6)
 

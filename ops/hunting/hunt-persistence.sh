@@ -20,7 +20,7 @@ cut -d: -f1 /etc/passwd | while read -r u; do
   crontab -l -u "$u" 2>/dev/null | sed "s/^/$u: /"
 done
 section "/etc/cron.d (생성 날짜를 키 파일 변경일과 비교)"
-ls -l --time-style=+%F /etc/cron.d
+ls -l --time-style=long-iso /etc/cron.d   # 날짜와 분 단위 시각 (서버 시계 UTC)
 
 section "최근 ${DAYS}일 안에 바뀐 systemd 유닛과 활성화 링크 (T1543.002)"
 find /etc/systemd /usr/lib/systemd /root/.config/systemd /home/*/.config/systemd \

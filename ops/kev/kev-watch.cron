@@ -1,0 +1,2 @@
+# /etc/cron.d/kev-watch : 매일 08:30 (서버 시간대 기준, 클라우드 기본은 UTC)
+30 8 * * * root /opt/kev_daily.sh

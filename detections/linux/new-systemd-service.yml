@@ -1,5 +1,7 @@
-# 6-8 찾은 패턴은 규칙으로 남긴다 (Sigma). 입력은 1-6 의 auditd 파일 변경 기록(PATH 레코드).
-# auditd 규칙 예: -w /etc/systemd/system/ -p wa -k systemd_persist
+# 6-8 찾은 패턴은 규칙으로 남긴다 (Sigma). 입력은 auditd 파일 생성 기록(PATH 레코드, nametype=CREATE).
+# 1-6 의 auditd 규칙(50-server.rules)은 이 폴더를 감시하지 않는다. 6-8 s10 처럼 감시 규칙을 먼저 더한다:
+#   -w /etc/systemd/system -p wa -k systemd_persist     (같은 폴더의 60-persistence.rules)
+# 사용자 서비스 폴더(~/.config/systemd/user/)는 사용자마다 -w 규칙을 따로 더해야 기록이 남는다.
 # 변환 예: sigma convert -t <관제 도구 백엔드> -p <파이프라인> detections/linux/new-systemd-service.yml
 title: systemd 서비스 파일이 새로 생김
 id: b3e68093-cabf-4126-b3a6-9e06724aa97d

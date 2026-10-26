@@ -58,8 +58,11 @@ docker run --rm -v "$PWD":/w -w /w eclipse-temurin:25-jdk ./gradlew test
 ```bash
 ./gradlew test                                  # 전체 (H2, Docker 필요 없음)
 ./gradlew test --tests '*PostSearchAttackTest'  # 수업 화면과 같은 단위로
+./gradlew test --rerun --tests '*PostSearchAttackTest'   # 코드를 바꾸지 않고 다시 돌릴 때
 ./gradlew bootJar                               # build/libs/board.jar
 ```
+
+코드를 바꾸지 않은 채 `./gradlew test` 를 두 번째로 돌리면 Gradle 이 테스트를 최신 상태(up-to-date)로 보고 건너뛰어 `PASSED` 줄이 나오지 않습니다. 수업 화면은 코드를 바꾼 직후의 첫 실행 기준입니다. 결과 줄을 다시 보려면 `--rerun`(또는 `./gradlew cleanTest test`)을 붙이세요.
 
 ## 환경 변수
 
@@ -200,8 +203,7 @@ curl -si localhost:8080/api/posts -H "Origin: https://attacker.example.net" | gr
 
 - 강의 화면의 `/posts`, `/files`, `/orders` 같은 경로는 이 저장소에서 **`/api/...`(안전한 구현)**,
   **`/lab/...`(취약한 구현)** 로 나뉘어 있습니다. 테스트 코드도 `/api/...`를 호출합니다.
-- 2-3의 취약 쿼리는 화면의 `SELECT *` 대신 `SELECT id, title, author`를 씁니다.
-  화면 속 UNION 공격(3개 컬럼)이 그대로 재현되도록 맞춘 것입니다.
+- 2-3의 취약 쿼리는 화면과 같은 `SELECT id, title, author`(3개 컬럼)라서 화면 속 UNION 공격이 그대로 재현됩니다.
 - 업로드 파라미터 이름은 curl 화면과 같은 `file`입니다(`@RequestParam("file") MultipartFile f`).
 - 경로 조작 거절 상태 코드는 400입니다(2-4 화면 기준).
 - Spring Boot 4(Jackson 3) 기준이라 `ObjectMapper`·`JsonMapper`는 `tools.jackson.databind` 패키지에 있습니다.
@@ -212,19 +214,17 @@ curl -si localhost:8080/api/posts -H "Origin: https://attacker.example.net" | gr
 - 3-3: 화면처럼 `issuer-uri` 를 쓰면 시작할 때 IdP 에 접속하므로, OIDC 설정은 `oidc` 프로필(`application-oidc.yml`)에 두었습니다.
   IdP 등록이 있을 때만 `oauth2Login()` 을 켭니다. 테스트는 엔드포인트를 직접 적은 가짜 등록을 씁니다.
 - 3-4: 화면의 `@PostAuthorize` 예시는 같은 주소에 둘 수 없어 `GET /api/v2/orders/{id}` 로 두었습니다. 없는 주문도 403 입니다.
-- 3-6: 화면은 `@EnableMultiFactorAuthentication(authorities = {...})` 로 모든 사용자에게 두 요소를 요구합니다.
-  이 저장소는 `when = MultiFactorCondition.WEBAUTHN_REGISTERED` 를 더해 **패스키를 등록한 사용자에게만** 요구합니다(기존 실습 계정·테스트 유지).
+- 3-6: 화면과 같이 `@EnableMultiFactorAuthentication(..., when = MultiFactorCondition.WEBAUTHN_REGISTERED)` 로 **패스키를 등록한 사용자에게만** 두 요소를 요구합니다(기존 실습 계정·테스트 유지).
   두 번째 요소가 없으면 `/login` 으로 보내는 대신 401 `{"error":"webauthn_required"}` 를 돌려줍니다.
-  "모든 세션 끊기"는 Spring Session 의 `FindByIndexNameSessionRepository` 대신, 같은 메서드 이름을 가진 메모리 구현
+  "모든 세션 끊기"는 화면 주석처럼 Spring Session 의 `FindByIndexNameSessionRepository` 대신, 같은 메서드 이름을 가진 메모리 구현
   `user.PrincipalSessionRepository` 를 씁니다(서버가 여러 대면 Spring Session JDBC·Redis 로 바꿔야 합니다).
-- 3-7: JUnit 6 은 매개변수 테스트 이름의 문자열 인자에 따옴표를 붙입니다. 화면처럼 `bob → /api/orders/1001 = 403` 으로 보이도록
-  `@ParameterizedTest(..., quoteTextArguments = false)` 를 넣었습니다.
+- 3-7: JUnit 6 은 매개변수 테스트 이름의 문자열 인자에 따옴표를 붙입니다. 화면과 저장소 모두 `bob → /api/orders/1001 = 403` 으로 보이도록
+  `@ParameterizedTest(..., quoteTextArguments = false)` 를 씁니다(2-x 의 다른 매개변수 테스트는 `"203.0.113.10; id"` 처럼 따옴표가 붙은 채 출력됩니다).
 - 4-1: 화면의 `profiles.update(auth.getName(), u)` 는 `user.ProfileService` 입니다. 보낸 필드만 바꿉니다(null 은 그대로 둠).
   취약 실습이 `BeanUtils.copyProperties` 로 role 을 복사하려면 setter 가 필요해서 `AppUser` 에 `setNickname`·`setBio`·`setRole` 이 있습니다.
-- 4-2: 화면은 보기 화면 하나에 `th:text`(이스케이프)와 정화한 `bodyHtml`(`th:utext`)을 보여 주지만, 저장소는
-  `/view`(이스케이프)와 `/rich`(정화)로 나눴습니다. 정화 테스트는 `RichTextSanitizerTest` 에 따로 있습니다.
+- 4-2: 화면처럼 `/view`(이스케이프, `th:text`)와 `/rich`(정화한 `bodyHtml`, `th:utext`)로 나눠 두었습니다. 정화 테스트는 `RichTextSanitizerTest` 에 따로 있습니다.
   lab 보기 화면에도 CSP 헤더가 붙으므로 브라우저에서는 인라인 이벤트 처리기가 막힙니다(응답 HTML 로 취약점을 확인).
-- 4-4: 화면의 `if (!b.tryConsume(1))` 대신 `tryConsumeAndReturnRemaining(1)` 로 남은 대기 시간을 구해 `Retry-After` 를 붙입니다.
+- 4-4: 화면처럼 `tryConsumeAndReturnRemaining(1)` 로 남은 대기 시간을 구해 `Retry-After` 를 붙입니다(화면은 429 응답 부분을 주석으로 줄임).
   인증이 필요한 경로는 Spring Security 가 먼저 401 을 돌려주므로, 익명 요청은 공개 경로(`GET /api/posts` 등)에서만 셉니다.
   버킷은 서버 메모리입니다(서버가 여러 대면 bucket4j-redis 등으로 공유). 테스트 프로필은 다른 테스트가 걸리지 않도록 한도를 크게 두고,
   `RateLimitFilterTest` 만 100 으로 돌립니다. `RateLimitFilterTest` 에는 "익명은 IP, 로그인 사용자는 사용자 이름" 테스트가 하나 더 있습니다.
@@ -232,14 +232,14 @@ curl -si localhost:8080/api/posts -H "Origin: https://attacker.example.net" | gr
   폼 파라미터(`parameterName`, 기본 `_csrf`)로 보냅니다. `CsrfCorsTest` 에는 화면의 두 테스트 외에
   "XSRF-TOKEN 쿠키 값을 X-XSRF-TOKEN 헤더로 보내면 통과한다", "허용한 Origin 에는 그 출처와 자격 증명 허용을 돌려준다"가 더 있습니다.
   허용하지 않은 Origin 의 요청은 Spring 이 403 으로 거절합니다(CORS 헤더 없음).
-- 5-1: 화면의 `truststore.certificate: classpath:ca.pem` 은 `internal-api` 프로필에서 `${INTERNAL_CA_FILE:file:/etc/board/internal-ca.pem}` 입니다(인증서는 이미지에 굽지 않고 마운트). 화면의 `builder.apply(ssl.fromBundle("internal"))` 앞에 `baseUrl(...)` 이 붙고, https 가 아니면 기동하지 않습니다.
+- 5-1: 화면과 같이 `internal-api` 프로필(`application-internal-api.yml`)의 `truststore.certificate` 는 `${INTERNAL_CA_FILE:file:/etc/board/internal-ca.pem}` 이고(인증서는 이미지에 굽지 않고 마운트), `builder.baseUrl(...).apply(ssl.fromBundle("internal"))` 로 이 클라이언트에만 적용합니다. 저장소는 https 가 아니면 기동하지 않습니다.
   테스트는 `src/test/resources/tls/` 의 사내 CA·사내 CA 가 서명한 인증서·같은 이름의 자체 서명(중간자) 인증서로 번들의 신뢰 관리자를 직접 확인합니다(네트워크·개인 키 없음).
 - 5-2: 화면의 `save(ct, iv, dk.ciphertextBlob())` 는 `member.Member#phone(ct, iv, wrappedKey, idx)` 입니다(Java 는 GCM 태그가 `ct` 끝에 붙음). `aesKey(dk.plaintext())` 는 `plaintext().asByteArray()` 로 꺼내 쓰고 바로 0 으로 지웁니다.
   `KMS_KEY_ID` 가 없으면 `LocalKmsClient`(AWS SDK `KmsClient` 를 구현한 가짜)가 같은 요청을 받습니다. 관리자 회원 조회 화면에는 복호화한 번호도 `Mask.phone` 으로 가려서 내보냅니다.
-- 5-3: 화면의 `spring.config.import: aws-secretsmanager:prod/board-api/db` 는 `aws` 프로필에만 있고 `optional:` 을 붙였습니다. 시크릿 JSON 의 키가 설정 이름이 됩니다(예: `{"spring.datasource.password": "…", "app.webhook.secret": "…"}`).
+- 5-3: 화면의 `application-aws.yml`(`optional:aws-secretsmanager:prod/board-api/db`·`/webhook`)은 저장소와 같고, `aws` 프로필에서만 읽습니다. 시크릿 JSON 의 키가 설정 이름이 됩니다(예: `{"spring.datasource.password": "…", "app.webhook.secret": "…"}`).
 - 5-4: `Mask` 를 Express·화면과 같은 모양으로 바꿨습니다: `last4` → `****-****-****-1234`(이전 `****1234`), `email` → `a***@example.com`(이전 `a****@`), 10자리 미만 전화번호 → `***`. `DeserializationAttackTest` 의 `masked` 기대값도 바뀌었습니다.
   화면의 `SignupRequest` 에 이메일 `@NotBlank @Size(max = 50)`, 비밀번호 `@NotNull @Size(max = 200)` 이 더해졌습니다(가입 이메일을 사용자 이름으로 씀). 모르는 필드(`residentNo`·`address`)는 Jackson 이 400 으로 거절합니다.
-  화면의 `purgeExpired()` 는 `RETENTION` 하나지만, 저장소는 탈퇴 회원(`MEMBER_RETENTION`, 30일)과 주문(`ORDER_RETENTION`, 5년)을 나눴고 로그에 익명화한 주문 수도 남깁니다. 접속기록은 Express 와 같은 다섯 항목 + 결과·건수를 `privacy_access_log` 에 쓰며, `/api/admin/**` URL 규칙이 먼저 거절한 요청(403)은 남지 않습니다.
+  `purgeExpired()` 는 화면처럼 탈퇴 회원(`MEMBER_RETENTION`, 30일)과 주문(`ORDER_RETENTION`, 5년)의 보존 기간을 나누고, 로그에 익명화한 주문 수도 남깁니다. 접속기록은 Express 와 같은 다섯 항목 + 결과·건수를 `privacy_access_log` 에 쓰며, `/api/admin/**` URL 규칙이 먼저 거절한 요청(403)은 남지 않습니다.
 - 5-5: 화면(Express)의 내보내기를 같은 규칙으로 옮겼습니다: `PageRequest.of(page, 1000, Sort.by("id").ascending())`, 컬럼 허용 목록 `id`·`nickname`·`email`·`createdAt`, 오늘 누적 건수(`ExportCounter`, 서버 메모리)가 기준을 넘으면 `ExportAlert`(기본: 경고 로그).
 - 5-7: Spring 은 서버 세션 방식이라 KMS JWT 서명 예제가 없습니다(Express 에만 있음).
 - 6-2: 화면의 `StringRedisTemplate redis` 자리에 같은 모양(`increment`·`expire`)의 `detect.LookupCounter` 를 두고, 기본 구현은 서버 메모리(`MemoryLookupCounter`)입니다. Redis 스타터를 넣으면 Redis 가 없을 때 `/health` 가 DOWN 이 되므로 넣지 않았습니다. 서버가 여러 대면 `redis.opsForValue().increment(key)` 구현으로 바꿉니다.
