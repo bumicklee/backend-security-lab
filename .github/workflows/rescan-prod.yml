@@ -24,7 +24,7 @@ jobs:
       fail-fast: false
       matrix: { image: [board-api, upload-worker, webhook] }   # 대상 = 자산 목록의 운영 이미지
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0 — 예외 파일을 읽으려고
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v5.1.0 — 예외 파일을 읽으려고
         with: { persist-credentials: false }
       - name: trivy 설치 (버전·체크섬 고정)
         run: |
