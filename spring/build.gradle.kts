@@ -46,7 +46,7 @@ dependencies {
     // 5-1 내부 API 클라이언트: SSL 번들(spring.ssl.bundle.*) → RestClientSsl
     implementation("org.springframework.boot:spring-boot-starter-restclient")
     // 5-2 KMS 데이터 키(봉투 암호화) · 5-3 spring.config.import: aws-secretsmanager: (aws 프로필에서만)
-    implementation(platform("io.awspring.cloud:spring-cloud-aws-dependencies:4.2.0"))
+    implementation(platform("io.awspring.cloud:spring-cloud-aws-dependencies:4.2.1"))
     implementation("io.awspring.cloud:spring-cloud-aws-starter-secrets-manager")
     implementation("software.amazon.awssdk:kms")
 
